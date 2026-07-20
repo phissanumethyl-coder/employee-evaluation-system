@@ -79,6 +79,8 @@ export function Style() {
       .emp-top h3{font-size:17px}
       .emp-meta{display:flex;justify-content:space-between;font-size:13px;color:#444;border-top:1px dashed var(--line);padding-top:10px}
       .ok{color:var(--pass);font-weight:700}
+      .review{color:#ca8a04;font-weight:700}
+      .stat.review .stat-n{color:#ca8a04}
       .no{color:var(--term);font-weight:700}
 
       .badge{font-size:11px;font-weight:700;padding:4px 10px;border-radius:20px;white-space:nowrap}
@@ -140,7 +142,7 @@ export function Style() {
       .bc-stats{display:flex;justify-content:space-between;text-align:center}
       .bc-stats .n{display:block;font-family:'Space Grotesk';font-size:22px;font-weight:700}
       .bc-stats .l{font-size:11px;color:var(--muted)}
-      .bc-stats .pass .n{color:var(--pass)} .bc-stats .fail .n{color:var(--term)}
+      .bc-stats .pass .n{color:var(--pass)} .bc-stats .fail .n{color:var(--term)} .bc-stats .review .n{color:#ca8a04}
       .bc-alert{margin-top:12px;background:#dc262614;color:var(--term);padding:6px 10px;border-radius:8px;font-size:12px;text-align:center;font-weight:600}
 
       .table-wrap{background:var(--card);border:1px solid var(--line);border-radius:14px;overflow:auto}

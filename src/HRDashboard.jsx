@@ -159,7 +159,7 @@ export default function HRDashboard({ ready, onLogout }) {
                 <div className="emp-meta">
                   {last ? (
                     <>
-                      <span className={last.verdict === "pass" ? "ok" : "no"}>
+                      <span className={last.verdict === "pass" ? "review" : "no"}>
                         {last.verdict === "pass" ? "อยู่ระหว่างพิจารณา" : "ไม่ผ่าน"}
                       </span>
                       <span className="tiny">{weekLabel(last.week)}</span>
@@ -222,7 +222,7 @@ export default function HRDashboard({ ready, onLogout }) {
 
         <div className="stat-row">
           <div className="stat"><span className="stat-n">{totals.total}</span><span className="stat-l">ประเมินทั้งหมด</span></div>
-          <div className="stat pass"><span className="stat-n">{totals.pass}</span><span className="stat-l">อยู่ระหว่างพิจารณา</span></div>
+          <div className="stat review"><span className="stat-n">{totals.pass}</span><span className="stat-l">อยู่ระหว่างพิจารณา</span></div>
           <div className="stat fail"><span className="stat-n">{totals.fail}</span><span className="stat-l">ไม่ผ่าน</span></div>
         </div>
 
@@ -285,7 +285,7 @@ export default function HRDashboard({ ready, onLogout }) {
               <p className="tiny bc-head">พนักงานทั้งหมด {b.headcount} คน</p>
               <div className="bc-stats">
                 <div><span className="n">{b.total}</span><span className="l">ประเมิน</span></div>
-                <div className="pass"><span className="n">{b.pass}</span><span className="l">พิจารณา</span></div>
+                <div className="review"><span className="n">{b.pass}</span><span className="l">พิจารณา</span></div>
                 <div className="fail"><span className="n">{b.fail}</span><span className="l">ไม่ผ่าน</span></div>
               </div>
               {b.fail > 0 && <div className="bc-alert">มี {b.fail} คนไม่ผ่าน</div>}
@@ -323,7 +323,7 @@ export default function HRDashboard({ ready, onLogout }) {
                     <td>{ev.employeeName}</td>
                     <td>{branchName(ev.branchId)}</td>
                     <td className="nowrap">{weekLabel(ev.week)}</td>
-                    <td><span className={ev.verdict === "pass" ? "ok" : "no"}>
+                    <td><span className={ev.verdict === "pass" ? "review" : "no"}>
                       {ev.verdict === "pass" ? "พิจารณา" : "ไม่ผ่าน"}</span></td>
                     <td><button className="link-btn" onClick={() => generateEvaluationPDF(emp, ev)}>ดาวน์โหลด</button></td>
                   </tr>

@@ -101,7 +101,7 @@ function EmployeeList({ employees, evals, onAdd, onEvaluate, onHistory }) {
         <div className="emp-meta">
           {last ? (
             <>
-              <span className={last.verdict === "pass" ? "ok" : "no"}>
+              <span className={last.verdict === "pass" ? "review" : "no"}>
                 {last.verdict === "pass" ? "อยู่ระหว่างพิจารณา" : "ไม่ผ่าน"}
               </span>
               <span className="tiny">{weekLabel(last.week)}</span>
@@ -312,7 +312,7 @@ function EvaluateForm({ branch, employee, evals, onDone, onCancel }) {
           {history.map((h) => (
             <div key={h.id} className="hist-row">
               <div className="hist-main">
-                <span className={h.verdict === "pass" ? "ok" : "no"}>
+                <span className={h.verdict === "pass" ? "review" : "no"}>
                   {h.verdict === "pass" ? "อยู่ระหว่างพิจารณา" : "ไม่ผ่าน"}
                 </span>
                 <div className="tiny">{weekLabel(h.week)} · {fmtDateTime(h.evaluatedAt)}</div>

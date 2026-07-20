@@ -10,7 +10,7 @@ function EvalCard({ emp, ev }) {
     <div className="eval-detail">
       <div className="ed-head">
         <div>
-          <strong className={ev.verdict === "pass" ? "ok" : "no"}>
+          <strong className={ev.verdict === "pass" ? "review" : "no"}>
             {ev.verdict === "pass" ? "อยู่ระหว่างพิจารณา" : "ไม่ผ่านการประเมิน"}
           </strong>
           <span className="tiny"> · สัปดาห์ {weekLabel(ev.week)}</span>
