@@ -1,0 +1,31 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ต้อง sign-in (anonymous) ก่อนเสมอ
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    match /employees/{empId} {
+      allow read: if signedIn();
+      // สร้าง/แก้ไขได้เมื่อมี field ที่จำเป็นครบ
+      allow create: if signedIn()
+        && request.resource.data.branchId is string
+        && request.resource.data.name is string
+        && request.resource.data.status in ['probation','passed','terminated'];
+      allow update: if signedIn()
+        && request.resource.data.status in ['probation','passed','terminated'];
+      allow delete: if false; // ห้ามลบ เก็บประวัติไว้
+    }
+
+    match /evaluations/{evalId} {
+      allow read: if signedIn();
+      allow create: if signedIn()
+        && request.resource.data.branchId is string
+        && request.resource.data.result in ['pass','fail']
+        && request.resource.data.avg is number;
+      allow update, delete: if false; // ผลประเมินแก้/ลบไม่ได้ เพื่อความโปร่งใส
+    }
+  }
+}
