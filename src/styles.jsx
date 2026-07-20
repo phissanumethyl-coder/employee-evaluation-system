@@ -99,7 +99,7 @@ export function Style() {
 
       .history{margin-top:28px;border-top:1px solid var(--line);padding-top:16px}
       .history h3{font-size:15px;margin-bottom:10px}
-      .hist-row{display:grid;grid-template-columns:1fr auto auto;gap:12px;align-items:center;padding:8px 0;font-size:14px;border-bottom:1px dashed var(--line)}
+      .hist-row{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:10px 0;font-size:14px;border-bottom:1px dashed var(--line)}
 
       /* ===== HR Dashboard ===== */
       .period-bar{display:flex;gap:12px;align-items:center;margin-bottom:20px;flex-wrap:wrap}
@@ -135,6 +135,15 @@ export function Style() {
       th,td{text-align:left;padding:12px 16px;border-bottom:1px solid var(--line)}
       th{background:#0000000a;font-weight:600;font-size:13px;white-space:nowrap}
       tr:last-child td{border-bottom:none}
+
+      .flag-row.pass-row{border-left:3px solid var(--accent)}
+      .filters{display:flex;gap:10px}
+      .filters select{padding:8px 12px;border:1px solid var(--line);border-radius:8px;font-family:inherit;background:#fff;font-size:13px}
+      .eval-time{margin-top:-4px}
+      .hist-main{display:flex;flex-direction:column;gap:2px}
+      .nowrap{white-space:nowrap}
+      .locked-note{text-align:center;color:var(--term);font-weight:600;font-size:13px;padding:8px;background:#b23a3a0d;border-radius:8px}
+      .emp-card.locked{opacity:.7}
 
       @media(max-width:640px){
         .main{padding:18px 12px}

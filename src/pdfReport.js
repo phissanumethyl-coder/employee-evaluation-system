@@ -1,6 +1,6 @@
 import { jsPDF } from "jspdf";
 import { SarabunRegular, SarabunBold } from "./fonts/sarabun";
-import { CRITERIA, RATINGS, branchName } from "./config";
+import { CRITERIA, RATINGS, branchName, fmtDateTime } from "./config";
 
 const ratingLabel = (k) => RATINGS.find((r) => r.key === k)?.label || "-";
 
@@ -57,6 +57,7 @@ export function generateEvaluationPDF(emp, ev) {
     ["สาขา", branchName(emp.branchId)],
     ["วันเริ่มงาน", fmtThaiDate(emp.startDate)],
     ["สัปดาห์ที่ประเมิน", ev.week || "-"],
+    ["วันเวลาที่ประเมิน", fmtDateTime(ev.evaluatedAt)],
     ["ผู้ประเมิน (ผู้จัดการสาขา)", ev.evaluatorName || branchName(emp.branchId)],
   ];
   info.forEach(([k, v]) => {

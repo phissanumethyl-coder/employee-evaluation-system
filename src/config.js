@@ -45,10 +45,16 @@ export const RATINGS = [
 ];
 
 export const STATUS = {
-  probation: { label: "ทดลองงาน", cls: "badge-probation" },
-  passed: { label: "ผ่านงาน", cls: "badge-passed" },
+  evaluating: { label: "กำลังประเมิน", cls: "badge-probation" },
+  hired: { label: "บรรจุเป็นพนักงานแล้ว", cls: "badge-passed" },
   terminated: { label: "ยุติการทำงาน", cls: "badge-terminated" },
 };
+
+// พนักงานที่ HR จัดการแล้ว (บรรจุ/ยุติงาน) จะประเมินไม่ได้อีก
+export function canEvaluate(emp) {
+  const s = emp?.status || "evaluating";
+  return s === "evaluating" || s === "probation"; // probation = ข้อมูลเก่า
+}
 
 // ผลรวมที่ผู้จัดการตัดสิน
 export const VERDICTS = [
@@ -68,6 +74,24 @@ export function getISOWeek(d = new Date()) {
 
 export function getMonthKey(d = new Date()) {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+}
+
+// แปลง Firestore timestamp / วันเวลา เป็นข้อความไทยอ่านง่าย
+export function fmtDateTime(ts) {
+  if (!ts) return "-";
+  const d = ts.seconds ? new Date(ts.seconds * 1000) : new Date(ts);
+  if (isNaN(d)) return "-";
+  const date = d.toLocaleDateString("th-TH", { day: "2-digit", month: "short", year: "numeric" });
+  const time = d.toLocaleTimeString("th-TH", { hour: "2-digit", minute: "2-digit" });
+  return `${date} ${time} น.`;
+}
+
+// คืนค่า millisecond สำหรับ sort (รองรับทั้ง timestamp และ null)
+export function tsToMillis(ts) {
+  if (!ts) return 0;
+  if (ts.seconds) return ts.seconds * 1000;
+  const d = new Date(ts);
+  return isNaN(d) ? 0 : d.getTime();
 }
 
 export function branchName(id) {

@@ -11,7 +11,7 @@ service cloud.firestore {
       allow create: if signedIn()
         && request.resource.data.branchId is string
         && request.resource.data.name is string
-        && request.resource.data.status in ['probation','passed','terminated'];
+        && request.resource.data.status in ['evaluating','probation','hired','passed','terminated'];
       allow update: if signedIn();
       allow delete: if false;
     }
@@ -21,10 +21,8 @@ service cloud.firestore {
       allow create: if signedIn()
         && request.resource.data.branchId is string
         && request.resource.data.verdict in ['pass','fail'];
-      // อนุญาตให้อัปเดตได้เฉพาะ field hrHandled เท่านั้น (กันแก้ผลประเมิน)
-      allow update: if signedIn()
-        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['hrHandled']);
-      allow delete: if false;
+      // ผลประเมินแก้/ลบไม่ได้ เพื่อความโปร่งใส (การจัดการสถานะทำที่ตัวพนักงานแทน)
+      allow update, delete: if false;
     }
   }
 }

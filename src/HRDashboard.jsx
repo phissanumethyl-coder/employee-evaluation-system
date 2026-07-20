@@ -1,16 +1,20 @@
 import React, { useState, useEffect, useMemo } from "react";
 import { collection, onSnapshot, doc, updateDoc } from "firebase/firestore";
 import { db } from "./firebase";
-import { BRANCHES, getISOWeek, getMonthKey, branchName } from "./config";
+import {
+  BRANCHES, getISOWeek, getMonthKey, branchName, fmtDateTime, tsToMillis, canEvaluate,
+} from "./config";
 import { generateEvaluationPDF } from "./pdfReport";
 import { Style } from "./styles";
 
 export default function HRDashboard({ ready, onLogout }) {
   const [employees, setEmployees] = useState([]);
   const [evals, setEvals] = useState([]);
-  const [period, setPeriod] = useState("week"); // week | month
+  const [period, setPeriod] = useState("week");
   const [selWeek, setSelWeek] = useState(getISOWeek());
   const [selMonth, setSelMonth] = useState(getMonthKey());
+  const [fBranch, setFBranch] = useState("all");   // filter สาขา
+  const [fVerdict, setFVerdict] = useState("all");  // filter ผล
 
   useEffect(() => {
     if (!ready) return;
@@ -29,7 +33,6 @@ export default function HRDashboard({ ready, onLogout }) {
     return m;
   }, [employees]);
 
-  // ตัวเลือกช่วงเวลาที่มีข้อมูลจริง
   const weekOptions = useMemo(() => {
     const s = new Set(evals.map((e) => e.week).filter(Boolean));
     s.add(getISOWeek());
@@ -44,8 +47,8 @@ export default function HRDashboard({ ready, onLogout }) {
     return [...s].sort().reverse();
   }, [evals]);
 
-  // กรองผลตามช่วงที่เลือก
-  const filtered = useMemo(() => {
+  // กรองตามช่วงเวลา (ใช้กับ stat + card สาขา)
+  const periodEvals = useMemo(() => {
     if (period === "week") return evals.filter((e) => e.week === selWeek);
     return evals.filter(
       (e) => e.evaluatedAt?.seconds &&
@@ -53,36 +56,53 @@ export default function HRDashboard({ ready, onLogout }) {
     );
   }, [evals, period, selWeek, selMonth]);
 
-  // สรุปรวม
-  const totals = useMemo(() => {
-    const pass = filtered.filter((e) => e.verdict === "pass").length;
-    const fail = filtered.filter((e) => e.verdict === "fail").length;
-    return { pass, fail, total: filtered.length };
-  }, [filtered]);
+  const totals = useMemo(() => ({
+    total: periodEvals.length,
+    pass: periodEvals.filter((e) => e.verdict === "pass").length,
+    fail: periodEvals.filter((e) => e.verdict === "fail").length,
+  }), [periodEvals]);
 
-  // คนที่ไม่ผ่าน (flag ให้ HR โทรแจ้ง)
-  const flagged = useMemo(
-    () => filtered.filter((e) => e.verdict === "fail")
-      .sort((a, b) => (a.hrHandled === b.hrHandled ? 0 : a.hrHandled ? 1 : -1)),
-    [filtered]
-  );
-
-  // สรุปต่อสาขา
-  const byBranch = useMemo(() => {
-    return BRANCHES.map((b) => {
-      const rows = filtered.filter((e) => e.branchId === b.id);
+  const byBranch = useMemo(() =>
+    BRANCHES.map((b) => {
+      const rows = periodEvals.filter((e) => e.branchId === b.id);
       return {
-        ...b,
-        total: rows.length,
+        ...b, total: rows.length,
         pass: rows.filter((e) => e.verdict === "pass").length,
         fail: rows.filter((e) => e.verdict === "fail").length,
       };
-    });
-  }, [filtered]);
+    }), [periodEvals]);
 
-  async function markHandled(ev) {
+  // ===== รายการ "ต้องจัดการ" — ผูกกับตัวพนักงาน (ยังประเมินอยู่ = HR ยังไม่จัดการ) =====
+  const pending = useMemo(() => {
+    return employees
+      .filter((emp) => canEvaluate(emp) && emp.lastVerdict) // ยังไม่ถูกจัดการ + เคยประเมินแล้ว
+      .map((emp) => ({ emp, latest: latestEvalOf(emp.id) }))
+      .filter((x) => x.latest)
+      .sort((a, b) => tsToMillis(b.latest.evaluatedAt) - tsToMillis(a.latest.evaluatedAt));
+    function latestEvalOf(id) {
+      return evals.filter((e) => e.employeeId === id)
+        .sort((a, b) => tsToMillis(b.evaluatedAt) - tsToMillis(a.evaluatedAt))[0] || null;
+    }
+  }, [employees, evals]);
+
+  // ===== ตารางรายการประเมินทั้งหมด — เรียงเวลาล่าสุดบนสุด + filter =====
+  const tableRows = useMemo(() => {
+    let rows = [...periodEvals];
+    if (fBranch !== "all") rows = rows.filter((e) => e.branchId === fBranch);
+    if (fVerdict !== "all") rows = rows.filter((e) => e.verdict === fVerdict);
+    return rows.sort((a, b) => tsToMillis(b.evaluatedAt) - tsToMillis(a.evaluatedAt));
+  }, [periodEvals, fBranch, fVerdict]);
+
+  // อัปเดตสถานะพนักงาน: ยุติงาน / บรรจุ
+  async function setEmpStatus(emp, status) {
+    const msg = status === "terminated"
+      ? `ยืนยันว่าติดต่อ "${emp.name}" เพื่อยุติการทำงานแล้ว?\nหลังจากนี้ผู้จัดการจะประเมินคนนี้ไม่ได้อีก`
+      : `ยืนยันบรรจุ "${emp.name}" เป็นพนักงาน?\nหลังจากนี้ผู้จัดการจะประเมินคนนี้ไม่ได้อีก`;
+    if (!window.confirm(msg)) return;
     try {
-      await updateDoc(doc(db, "evaluations", ev.id), { hrHandled: !ev.hrHandled });
+      await updateDoc(doc(db, "employees", emp.id), {
+        status, hrHandledAt: new Date().toISOString(),
+      });
     } catch (e) { alert("อัปเดตไม่สำเร็จ: " + e.message); }
   }
 
@@ -95,7 +115,6 @@ export default function HRDashboard({ ready, onLogout }) {
       </header>
 
       <main className="main wide">
-        {/* ตัวเลือกช่วงเวลา */}
         <div className="period-bar">
           <div className="seg">
             <button className={period === "week" ? "on" : ""} onClick={() => setPeriod("week")}>รายสัปดาห์</button>
@@ -112,39 +131,46 @@ export default function HRDashboard({ ready, onLogout }) {
           )}
         </div>
 
-        {/* สรุปตัวเลขรวม */}
         <div className="stat-row">
           <div className="stat"><span className="stat-n">{totals.total}</span><span className="stat-l">ประเมินทั้งหมด</span></div>
           <div className="stat pass"><span className="stat-n">{totals.pass}</span><span className="stat-l">ผ่าน</span></div>
           <div className="stat fail"><span className="stat-n">{totals.fail}</span><span className="stat-l">ไม่ผ่าน</span></div>
         </div>
 
-        {/* รายชื่อคนไม่ผ่าน — flag ให้ HR โทรแจ้ง */}
+        {/* พนักงานที่ HR ต้องจัดการ (ยังไม่บรรจุ/ยุติงาน) */}
         <section className="flag-panel">
-          <h2>⚠ ต้องติดต่อ ({flagged.length})</h2>
-          <p className="sub">พนักงานที่ผลออกมา "ไม่ผ่าน" ในช่วงนี้ — โทรแจ้งแล้วกดทำเครื่องหมาย</p>
-          {flagged.length === 0 && <div className="empty sm">ไม่มีพนักงานที่ไม่ผ่านในช่วงนี้</div>}
-          {flagged.map((ev) => {
-            const emp = empMap[ev.employeeId] || { name: ev.employeeName, branchId: ev.branchId };
+          <h2>รอ HR จัดการ ({pending.length})</h2>
+          <p className="sub">พนักงานที่ยังอยู่ระหว่างประเมิน — กดจัดการเมื่อผลชัดเจนแล้ว (จะสิ้นสุดการประเมิน)</p>
+          {pending.length === 0 && <div className="empty sm">ไม่มีพนักงานที่รอจัดการ</div>}
+          {pending.map(({ emp, latest }) => {
+            const failed = latest.verdict === "fail";
             return (
-              <div key={ev.id} className={`flag-row ${ev.hrHandled ? "handled" : ""}`}>
+              <div key={emp.id} className={`flag-row ${failed ? "" : "pass-row"}`}>
                 <div>
-                  <strong>{ev.employeeName}</strong>
-                  <span className="tiny"> · {branchName(ev.branchId)} · {ev.week}</span>
+                  <strong>{emp.name}</strong>
+                  <span className="tiny"> · {branchName(emp.branchId)} · ล่าสุด {latest.week}</span>
+                  <div className="tiny">
+                    ผล<span className={failed ? "no" : "ok"}> {failed ? "ไม่ผ่าน" : "ผ่าน"}</span>
+                    {" · "}{fmtDateTime(latest.evaluatedAt)}
+                  </div>
                 </div>
                 <div className="flag-actions">
-                  <button className="link-btn" onClick={() => generateEvaluationPDF(emp, ev)}>PDF</button>
-                  <button
-                    className={`btn ${ev.hrHandled ? "btn-ghost" : "btn-danger"} sm`}
-                    onClick={() => markHandled(ev)}
-                  >{ev.hrHandled ? "✓ ติดต่อแล้ว" : "ยังไม่ติดต่อ"}</button>
+                  <button className="link-btn" onClick={() => generateEvaluationPDF(emp, latest)}>PDF</button>
+                  {failed ? (
+                    <button className="btn btn-danger sm" onClick={() => setEmpStatus(emp, "terminated")}>
+                      ติดต่อแล้ว (ยุติงาน)
+                    </button>
+                  ) : (
+                    <button className="btn btn-primary sm" onClick={() => setEmpStatus(emp, "hired")}>
+                      บรรจุเป็นพนักงานแล้ว
+                    </button>
+                  )}
                 </div>
               </div>
             );
           })}
         </section>
 
-        {/* card แต่ละสาขา */}
         <h2 className="sec-title">ภาพรวมแต่ละสาขา</h2>
         <div className="grid">
           {byBranch.map((b) => (
@@ -160,18 +186,32 @@ export default function HRDashboard({ ready, onLogout }) {
           ))}
         </div>
 
-        {/* ตารางผลทั้งหมดในช่วง */}
-        <h2 className="sec-title">รายการประเมินทั้งหมด ({filtered.length})</h2>
+        {/* ตารางรายการประเมินทั้งหมด + filter */}
+        <div className="section-head" style={{ marginTop: 28, marginBottom: 14 }}>
+          <h2 className="sec-title" style={{ margin: 0 }}>รายการประเมินทั้งหมด ({tableRows.length})</h2>
+          <div className="filters">
+            <select value={fBranch} onChange={(e) => setFBranch(e.target.value)}>
+              <option value="all">ทุกสาขา</option>
+              {BRANCHES.map((b) => <option key={b.id} value={b.id}>{b.name}</option>)}
+            </select>
+            <select value={fVerdict} onChange={(e) => setFVerdict(e.target.value)}>
+              <option value="all">ทุกผล</option>
+              <option value="pass">ผ่าน</option>
+              <option value="fail">ไม่ผ่าน</option>
+            </select>
+          </div>
+        </div>
         <div className="table-wrap">
           <table>
             <thead>
-              <tr><th>พนักงาน</th><th>สาขา</th><th>สัปดาห์</th><th>ผล</th><th>PDF</th></tr>
+              <tr><th>วันเวลาที่ประเมิน</th><th>พนักงาน</th><th>สาขา</th><th>สัปดาห์</th><th>ผล</th><th>PDF</th></tr>
             </thead>
             <tbody>
-              {filtered.sort((a, b) => (b.week || "").localeCompare(a.week || "")).map((ev) => {
+              {tableRows.map((ev) => {
                 const emp = empMap[ev.employeeId] || { name: ev.employeeName, branchId: ev.branchId };
                 return (
                   <tr key={ev.id}>
+                    <td className="nowrap">{fmtDateTime(ev.evaluatedAt)}</td>
                     <td>{ev.employeeName}</td>
                     <td>{branchName(ev.branchId)}</td>
                     <td>{ev.week}</td>
@@ -181,8 +221,8 @@ export default function HRDashboard({ ready, onLogout }) {
                   </tr>
                 );
               })}
-              {filtered.length === 0 && (
-                <tr><td colSpan={5} className="tiny" style={{ textAlign: "center", padding: 20 }}>ไม่มีข้อมูลในช่วงนี้</td></tr>
+              {tableRows.length === 0 && (
+                <tr><td colSpan={6} className="tiny" style={{ textAlign: "center", padding: 20 }}>ไม่มีข้อมูลตามเงื่อนไข</td></tr>
               )}
             </tbody>
           </table>

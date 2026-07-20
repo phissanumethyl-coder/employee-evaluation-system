@@ -3,7 +3,7 @@ import {
   collection, addDoc, updateDoc, doc, query, where, onSnapshot, serverTimestamp,
 } from "firebase/firestore";
 import { db } from "./firebase";
-import { CRITERIA, RATINGS, STATUS, VERDICTS, getISOWeek } from "./config";
+import { CRITERIA, RATINGS, STATUS, VERDICTS, getISOWeek, canEvaluate, fmtDateTime, tsToMillis } from "./config";
 import { generateEvaluationPDF } from "./pdfReport";
 import { Style } from "./styles";
 
@@ -65,7 +65,8 @@ export default function ManagerView({ branch, ready, onLogout }) {
 function EmployeeList({ employees, evals, onAdd, onEvaluate }) {
   const thisWeek = getISOWeek();
   const latestEval = (id) =>
-    evals.filter((e) => e.employeeId === id).sort((a, b) => (b.week || "").localeCompare(a.week || ""))[0] || null;
+    evals.filter((e) => e.employeeId === id)
+      .sort((a, b) => tsToMillis(b.evaluatedAt) - tsToMillis(a.evaluatedAt))[0] || null;
   const doneThisWeek = (id) => evals.some((e) => e.employeeId === id && e.week === thisWeek);
 
   return (
@@ -87,11 +88,12 @@ function EmployeeList({ employees, evals, onAdd, onEvaluate }) {
 
       <div className="grid">
         {employees.map((emp) => {
-          const st = STATUS[emp.status] || STATUS.probation;
+          const st = STATUS[emp.status] || STATUS.evaluating;
           const last = latestEval(emp.id);
           const done = doneThisWeek(emp.id);
+          const locked = !canEvaluate(emp);
           return (
-            <div key={emp.id} className="emp-card">
+            <div key={emp.id} className={`emp-card ${locked ? "locked" : ""}`}>
               <div className="emp-top">
                 <div>
                   <h3>{emp.name}</h3>
@@ -102,19 +104,29 @@ function EmployeeList({ employees, evals, onAdd, onEvaluate }) {
               <div className="emp-meta">
                 {last ? (
                   <>
-                    <span>ล่าสุด {last.week}</span>
                     <span className={last.verdict === "pass" ? "ok" : "no"}>
                       {last.verdict === "pass" ? "ผ่าน" : "ไม่ผ่าน"}
                     </span>
+                    <span className="tiny">{last.week}</span>
                   </>
                 ) : <span className="tiny">ยังไม่เคยประเมิน</span>}
               </div>
-              <button
-                className={`btn full ${done ? "btn-ghost" : "btn-primary"}`}
-                onClick={() => onEvaluate(emp)}
-              >
-                {done ? "ประเมินซ้ำสัปดาห์นี้" : "ประเมินสัปดาห์นี้"}
-              </button>
+              {last && (
+                <p className="tiny eval-time">ประเมินล่าสุด {fmtDateTime(last.evaluatedAt)}</p>
+              )}
+              {locked ? (
+                <div className="locked-note">
+                  {emp.status === "hired" ? "บรรจุเป็นพนักงานแล้ว — สิ้นสุดการประเมิน"
+                    : "HR ติดต่อแล้ว — สิ้นสุดการประเมิน"}
+                </div>
+              ) : (
+                <button
+                  className={`btn full ${done ? "btn-ghost" : "btn-primary"}`}
+                  onClick={() => onEvaluate(emp)}
+                >
+                  {done ? "ประเมินซ้ำสัปดาห์นี้" : "ประเมินสัปดาห์นี้"}
+                </button>
+              )}
             </div>
           );
         })}
@@ -134,7 +146,7 @@ function AddEmployee({ branch, onDone, onCancel }) {
     try {
       await addDoc(collection(db, "employees"), {
         name: name.trim(), branchId: branch.id, branchName: branch.name,
-        startDate, status: "probation", createdAt: serverTimestamp(),
+        startDate, status: "evaluating", createdAt: serverTimestamp(),
       });
       onDone();
     } catch (e) { alert("บันทึกไม่สำเร็จ: " + e.message); }
@@ -173,7 +185,7 @@ function EvaluateForm({ branch, employee, evals, onDone, onCancel }) {
   const [overallNote, setOverallNote] = useState("");
   const [saving, setSaving] = useState(false);
 
-  const history = [...evals].sort((a, b) => (b.week || "").localeCompare(a.week || ""));
+  const history = [...evals].sort((a, b) => tsToMillis(b.evaluatedAt) - tsToMillis(a.evaluatedAt));
   const anyFail = Object.values(ratings).some((r) => r === "fail");
 
   async function submit() {
@@ -183,13 +195,12 @@ function EvaluateForm({ branch, employee, evals, onDone, onCancel }) {
         employeeId: employee.id, employeeName: employee.name,
         branchId: branch.id, week,
         ratings, comments, verdict, overallNote: overallNote.trim(),
-        hrFlag: verdict === "fail",       // flag เตือน HR
-        hrHandled: false,                 // HR ยังไม่จัดการ
         evaluatedAt: serverTimestamp(),
       });
-      // อัปเดตพนักงาน: บันทึกผลล่าสุด แต่ไม่เปลี่ยนเป็นยุติงานอัตโนมัติ
+      // อัปเดตพนักงาน: บันทึกผล+ เวลาล่าสุด (ไม่เปลี่ยน status — HR เป็นคนจัดการ)
       await updateDoc(doc(db, "employees", employee.id), {
         lastEvalWeek: week, lastVerdict: verdict,
+        lastEvaluatedAt: serverTimestamp(),
       });
       onDone();
     } catch (e) { alert("บันทึกไม่สำเร็จ: " + e.message); }
@@ -264,10 +275,13 @@ function EvaluateForm({ branch, employee, evals, onDone, onCancel }) {
           <h3>ประวัติการประเมิน</h3>
           {history.map((h) => (
             <div key={h.id} className="hist-row">
-              <span>{h.week}</span>
-              <span className={h.verdict === "pass" ? "ok" : "no"}>
-                {h.verdict === "pass" ? "ผ่าน" : "ไม่ผ่าน"}
-              </span>
+              <div className="hist-main">
+                <span className={h.verdict === "pass" ? "ok" : "no"}>
+                  {h.verdict === "pass" ? "ผ่าน" : "ไม่ผ่าน"}
+                </span>
+                <span className="tiny"> · {h.week}</span>
+                <div className="tiny">{fmtDateTime(h.evaluatedAt)}</div>
+              </div>
               <button className="link-btn" onClick={() => generateEvaluationPDF(employee, h)}>
                 ดาวน์โหลด PDF
               </button>
