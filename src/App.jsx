@@ -7,7 +7,13 @@ import ManagerView from "./ManagerView";
 import HRDashboard from "./HRDashboard";
 
 export default function App() {
-  const [session, setSession] = useState(null); // {role:'manager', branch} | {role:'hr'}
+  const [session, setSession] = useState(() => {
+    // คงสถานะล็อกอินไว้เมื่อ refresh (จนกว่าจะออกจากระบบ)
+    try {
+      const saved = sessionStorage.getItem("eval_session");
+      return saved ? JSON.parse(saved) : null;
+    } catch { return null; }
+  });
   const [mode, setMode] = useState("manager"); // manager | hr (แท็บใน login)
   const [pickBranch, setPickBranch] = useState(BRANCHES[0].id);
   const [passInput, setPassInput] = useState("");
@@ -23,6 +29,19 @@ export default function App() {
       });
   }, []);
 
+  // บันทึก/ลบ session เมื่อเปลี่ยน
+  useEffect(() => {
+    try {
+      if (session) sessionStorage.setItem("eval_session", JSON.stringify(session));
+      else sessionStorage.removeItem("eval_session");
+    } catch {}
+  }, [session]);
+
+  function logout() {
+    setSession(null);
+    try { sessionStorage.removeItem("eval_session"); } catch {}
+  }
+
   function login() {
     setErr("");
     if (mode === "hr") {
@@ -34,7 +53,7 @@ export default function App() {
     }
     const b = BRANCHES.find((x) => x.id === pickBranch);
     if (b && passInput.trim() === b.pass) {
-      setSession({ role: "manager", branch: b });
+      setSession({ role: "manager", branchId: b.id });
       setPassInput("");
     } else setErr("รหัสผ่านไม่ถูกต้อง ลองอีกครั้ง");
   }
@@ -105,13 +124,16 @@ export default function App() {
   }
 
   if (session.role === "hr") {
-    return <HRDashboard ready={ready} onLogout={() => setSession(null)} />;
+    return <HRDashboard ready={ready} onLogout={logout} />;
   }
+  // resolve branch ปัจจุบันจาก id (ไม่เก็บรหัสผ่านลง storage)
+  const activeBranch = BRANCHES.find((b) => b.id === session.branchId) || session.branch;
+  if (!activeBranch) { logout(); return null; }
   return (
     <ManagerView
-      branch={session.branch}
+      branch={activeBranch}
       ready={ready}
-      onLogout={() => setSession(null)}
+      onLogout={logout}
     />
   );
 }

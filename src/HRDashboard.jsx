@@ -8,6 +8,7 @@ import {
 import { generateEvaluationPDF } from "./pdfReport";
 import { Style } from "./styles";
 import EmployeeHistory from "./EmployeeHistory";
+import ConfirmModal from "./Modal";
 
 export default function HRDashboard({ ready, onLogout }) {
   const [employees, setEmployees] = useState([]);
@@ -19,6 +20,7 @@ export default function HRDashboard({ ready, onLogout }) {
   const [fVerdict, setFVerdict] = useState("all");
   const [drill, setDrill] = useState(null);   // สาขาที่คลิกดู
   const [histEmp, setHistEmp] = useState(null); // พนักงานที่ดูประวัติ
+  const [confirm, setConfirm] = useState(null); // {emp, status} สำหรับ modal ยืนยัน
 
   useEffect(() => {
     if (!ready) return;
@@ -102,15 +104,12 @@ export default function HRDashboard({ ready, onLogout }) {
     return rows.sort((a, b) => tsToMillis(b.evaluatedAt) - tsToMillis(a.evaluatedAt));
   }, [periodEvals, fBranch, fVerdict]);
 
-  async function setEmpStatus(emp, status) {
-    const msg = status === "terminated"
-      ? `ยืนยันว่าติดต่อ "${emp.name}" เพื่อยุติการทำงานแล้ว?\nคนนี้จะย้ายไปกลุ่มประวัติ`
-      : `ยืนยันบรรจุ "${emp.name}" เป็นพนักงาน?\nคนนี้จะสิ้นสุดการประเมินและย้ายไปกลุ่มประวัติ`;
-    if (!window.confirm(msg)) return;
+  async function doSetStatus(emp, status) {
     try {
       await updateDoc(doc(db, "employees", emp.id), {
         status, hrHandledAt: new Date().toISOString(),
       });
+      setConfirm(null);
     } catch (e) { alert("อัปเดตไม่สำเร็จ: " + e.message); }
   }
 
@@ -238,13 +237,13 @@ export default function HRDashboard({ ready, onLogout }) {
                 <strong>{emp.name}</strong>
                 <span className="tiny"> · {branchName(emp.branchId)}</span>
                 <div className="tiny">
-                  ไม่ผ่าน · {latest ? weekLabel(latest.week) : "-"} · {latest ? fmtDateTime(latest.evaluatedAt) : ""}
+                  ไม่ผ่าน · สัปดาห์ที่ประเมิน {latest ? weekLabel(latest.week) : "-"} · เวลาประเมิน {latest ? fmtDateTime(latest.evaluatedAt) : ""}
                 </div>
               </div>
               <div className="flag-actions">
                 <button className="link-btn" onClick={() => setHistEmp(emp)}>ประวัติ</button>
                 {latest && <button className="link-btn" onClick={() => generateEvaluationPDF(emp, latest)}>PDF</button>}
-                <button className="btn btn-danger sm" onClick={() => setEmpStatus(emp, "terminated")}>
+                <button className="btn btn-danger sm" onClick={() => setConfirm({ emp, status: "terminated" })}>
                   ยืนยันติดต่อแล้ว (ยุติงาน)
                 </button>
               </div>
@@ -263,13 +262,13 @@ export default function HRDashboard({ ready, onLogout }) {
                 <strong>{emp.name}</strong>
                 <span className="tiny"> · {branchName(emp.branchId)}</span>
                 <div className="tiny">
-                  อยู่ระหว่างพิจารณา · ล่าสุด {weekLabel(latest.week)} · {fmtDateTime(latest.evaluatedAt)}
+                  อยู่ระหว่างพิจารณา · สัปดาห์ที่ประเมิน {weekLabel(latest.week)} · เวลาประเมิน {fmtDateTime(latest.evaluatedAt)}
                 </div>
               </div>
               <div className="flag-actions">
                 <button className="link-btn" onClick={() => setHistEmp(emp)}>ประวัติ</button>
                 <button className="link-btn" onClick={() => generateEvaluationPDF(emp, latest)}>PDF</button>
-                <button className="btn btn-primary sm" onClick={() => setEmpStatus(emp, "hired")}>
+                <button className="btn btn-primary sm" onClick={() => setConfirm({ emp, status: "hired" })}>
                   บรรจุเป็นพนักงานแล้ว
                 </button>
               </div>
@@ -337,6 +336,18 @@ export default function HRDashboard({ ready, onLogout }) {
           </table>
         </div>
       </main>
+
+      <ConfirmModal
+        open={!!confirm}
+        title={confirm?.status === "terminated" ? "ยืนยันการยุติการทำงาน" : "ยืนยันการบรรจุพนักงาน"}
+        message={confirm?.status === "terminated"
+          ? `ยืนยันว่าได้ติดต่อ "${confirm?.emp.name}" เพื่อแจ้งยุติการทำงานแล้ว? พนักงานคนนี้จะย้ายไปกลุ่มประวัติและสิ้นสุดการประเมิน`
+          : `ยืนยันบรรจุ "${confirm?.emp.name}" เป็นพนักงานประจำ? พนักงานคนนี้จะสิ้นสุดการประเมินและย้ายไปกลุ่มประวัติ`}
+        confirmText={confirm?.status === "terminated" ? "ยืนยันยุติงาน" : "ยืนยันบรรจุ"}
+        confirmType={confirm?.status === "terminated" ? "danger" : "primary"}
+        onConfirm={() => doSetStatus(confirm.emp, confirm.status)}
+        onCancel={() => setConfirm(null)}
+      />
     </div>
   );
 }

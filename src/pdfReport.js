@@ -1,177 +1,129 @@
 import { jsPDF } from "jspdf";
-import { SarabunRegular, SarabunBold } from "./fonts/sarabun";
-import { CRITERIA, RATINGS, branchName, fmtDateTime } from "./config";
+import html2canvas from "html2canvas";
+import { CRITERIA, RATINGS, branchName, fmtDateTime, weekLabel } from "./config";
 
-const ratingLabel = (k) => RATINGS.find((r) => r.key === k)?.label || "-";
-
-function setupThaiFont(doc) {
-  doc.addFileToVFS("Sarabun-Regular.ttf", SarabunRegular);
-  doc.addFont("Sarabun-Regular.ttf", "Sarabun", "normal");
-  doc.addFileToVFS("Sarabun-Bold.ttf", SarabunBold);
-  doc.addFont("Sarabun-Bold.ttf", "Sarabun", "bold");
-  doc.setFont("Sarabun", "normal");
-}
+const ratingInfo = (k) => RATINGS.find((r) => r.key === k) || { label: "-", color: "#555" };
 
 function fmtThaiDate(iso) {
   if (!iso) return "-";
   const d = new Date(iso);
   if (isNaN(d)) return iso;
-  const m = [
-    "มกราคม", "กุมภาพันธ์", "มีนาคม", "เมษายน", "พฤษภาคม", "มิถุนายน",
-    "กรกฎาคม", "สิงหาคม", "กันยายน", "ตุลาคม", "พฤศจิกายน", "ธันวาคม",
-  ];
+  const m = ["มกราคม","กุมภาพันธ์","มีนาคม","เมษายน","พฤษภาคม","มิถุนายน",
+    "กรกฎาคม","สิงหาคม","กันยายน","ตุลาคม","พฤศจิกายน","ธันวาคม"];
   return `${d.getDate()} ${m[d.getMonth()]} ${d.getFullYear() + 543}`;
 }
 
-/**
- * สร้างแบบฟอร์มประเมินทางการเป็น PDF
- * @param {object} emp    ข้อมูลพนักงาน
- * @param {object} ev     ผลประเมิน 1 รายการ
- */
-export function generateEvaluationPDF(emp, ev) {
-  const doc = new jsPDF({ unit: "mm", format: "a4" });
-  setupThaiFont(doc);
+// สร้าง HTML ฟอร์มทางการ (browser จัดการ shaping ภาษาไทยถูกต้อง)
+function buildFormHTML(emp, ev) {
+  const verdictPass = ev.verdict === "pass";
+  const verdictText = verdictPass ? "อยู่ในช่วงพิจารณาทดลองงาน" : "ไม่ผ่านการประเมิน";
+  const verdictColor = verdictPass ? "#2563eb" : "#dc2626";
 
-  const pageW = 210;
-  const margin = 20;
-  const contentW = pageW - margin * 2;
-  let y = margin;
+  const critRows = CRITERIA.map((c, i) => {
+    const r = ratingInfo(ev.ratings?.[c.key]);
+    const comment = (ev.comments?.[c.key] || "-").replace(/</g, "&lt;");
+    return `
+      <div style="padding:14px 0;border-bottom:1px solid #e5e7eb;">
+        <div style="display:flex;justify-content:space-between;align-items:baseline;">
+          <span style="font-weight:700;font-size:16px;color:#0f172a;">${i + 1}. ${c.label}</span>
+          <span style="font-weight:700;font-size:15px;color:${r.color};">[ ${r.label} ]</span>
+        </div>
+        <div style="color:#64748b;font-size:13px;margin:4px 0 8px;">${c.hint}</div>
+        <div style="font-size:14px;color:#0f172a;"><b>ความเห็น:</b> ${comment}</div>
+      </div>`;
+  }).join("");
 
-  // ---------- หัวกระดาษ ----------
-  doc.setFont("Sarabun", "bold");
-  doc.setFontSize(16);
-  doc.text("แบบประเมินผลการปฏิบัติงานพนักงานทดลองงาน", pageW / 2, y, { align: "center" });
-  y += 7;
-  doc.setFontSize(12);
-  doc.setFont("Sarabun", "normal");
-  doc.text("ฝ่ายขาย Digital Marketing (ประเมินรายสัปดาห์)", pageW / 2, y, { align: "center" });
-  y += 6;
-  doc.setDrawColor(180);
-  doc.line(margin, y, pageW - margin, y);
-  y += 8;
-
-  // ---------- ข้อมูลพนักงาน ----------
-  doc.setFontSize(11);
-  const info = [
+  const infoRows = [
     ["ชื่อ–นามสกุล", emp.name || "-"],
     ["สาขา", branchName(emp.branchId)],
     ["วันเริ่มงาน", fmtThaiDate(emp.startDate)],
-    ["สัปดาห์ที่ประเมิน", ev.week || "-"],
+    ["สัปดาห์ที่ประเมิน", weekLabel(ev.week)],
     ["วันเวลาที่ประเมิน", fmtDateTime(ev.evaluatedAt)],
-    ["ผู้ประเมิน (ผู้จัดการสาขา)", ev.evaluatorName || branchName(emp.branchId)],
-  ];
-  info.forEach(([k, v]) => {
-    doc.setFont("Sarabun", "bold");
-    doc.text(`${k}:`, margin, y);
-    doc.setFont("Sarabun", "normal");
-    doc.text(String(v), margin + 55, y);
-    y += 7;
-  });
-  y += 3;
+    ["ผู้ประเมิน (ผู้จัดการสาขา)", branchName(emp.branchId)],
+  ].map(([k, v]) => `
+    <div style="display:flex;margin-bottom:8px;">
+      <div style="width:190px;font-weight:700;color:#0f172a;">${k}:</div>
+      <div style="color:#334155;">${v}</div>
+    </div>`).join("");
 
-  // ---------- ตารางหัวข้อประเมิน ----------
-  doc.setFont("Sarabun", "bold");
-  doc.setFontSize(12);
-  doc.text("ผลการประเมินรายหัวข้อ", margin, y);
-  y += 6;
+  const overall = ev.overallNote
+    ? `<div style="margin-top:16px;"><b>ความเห็นเพิ่มเติมของผู้ประเมิน:</b><div style="margin-top:6px;color:#334155;">${ev.overallNote.replace(/</g, "&lt;")}</div></div>`
+    : "";
 
-  CRITERIA.forEach((c, i) => {
-    const r = ev.ratings?.[c.key] || "-";
-    const comment = ev.comments?.[c.key] || "-";
+  return `
+    <div style="width:760px;padding:48px 56px;background:#fff;font-family:'IBM Plex Sans Thai',sans-serif;box-sizing:border-box;color:#0f172a;">
+      <div style="text-align:center;border-bottom:2px solid #1e3a8a;padding-bottom:16px;margin-bottom:24px;">
+        <div style="font-size:24px;font-weight:700;">แบบประเมินผลการปฏิบัติงานพนักงานทดลองงาน</div>
+        <div style="font-size:16px;color:#475569;margin-top:6px;">ฝ่ายขาย Digital Marketing (ประเมินรายสัปดาห์)</div>
+      </div>
+      ${infoRows}
+      <div style="font-size:18px;font-weight:700;margin:22px 0 8px;color:#1e3a8a;">ผลการประเมินรายหัวข้อ</div>
+      ${critRows}
+      <div style="margin-top:24px;padding:16px 20px;border-radius:10px;text-align:center;font-size:18px;font-weight:700;
+        background:${verdictPass ? "#eff6ff" : "#fef2f2"};color:${verdictColor};border:1.5px solid ${verdictColor};">
+        ผลสรุปการประเมิน: ${verdictText}
+      </div>
+      ${overall}
+      <div style="display:flex;justify-content:space-between;margin-top:56px;gap:40px;">
+        <div style="flex:1;text-align:center;">
+          <div style="border-top:1px dotted #94a3b8;padding-top:8px;">ลงชื่อ ..............................................</div>
+          <div style="margin-top:6px;color:#475569;">( ผู้จัดการสาขา )</div>
+        </div>
+        <div style="flex:1;text-align:center;">
+          <div style="border-top:1px dotted #94a3b8;padding-top:8px;">ลงชื่อ ..............................................</div>
+          <div style="margin-top:6px;color:#475569;">( ฝ่ายทรัพยากรบุคคล )</div>
+        </div>
+      </div>
+      <div style="margin-top:28px;font-size:12px;color:#94a3b8;">วันที่ออกเอกสาร: ${fmtThaiDate(new Date().toISOString())}</div>
+    </div>`;
+}
 
-    doc.setDrawColor(210);
-    doc.setFillColor(245, 243, 238);
+export async function generateEvaluationPDF(emp, ev) {
+  // สร้าง element ชั่วคราวนอกจอ
+  const holder = document.createElement("div");
+  holder.style.position = "fixed";
+  holder.style.left = "-10000px";
+  holder.style.top = "0";
+  holder.innerHTML = buildFormHTML(emp, ev);
+  document.body.appendChild(holder);
+  const node = holder.firstElementChild;
 
-    // กล่องหัวข้อ
-    doc.setFont("Sarabun", "bold");
-    doc.setFontSize(11);
-    doc.text(`${i + 1}. ${c.label}`, margin, y);
-    // ผล
-    const rLabel = ratingLabel(r);
-    const col =
-      r === "pass" ? [47, 111, 94] : r === "improve" ? [138, 109, 31] : [178, 58, 58];
-    doc.setTextColor(...col);
-    doc.text(`[ ${rLabel} ]`, pageW - margin, y, { align: "right" });
-    doc.setTextColor(0);
-    y += 5;
+  try {
+    // รอ font โหลด (กันตัวหนังสือเพี้ยนตอน render)
+    if (document.fonts && document.fonts.ready) await document.fonts.ready;
 
-    // คำอธิบายหัวข้อ
-    doc.setFont("Sarabun", "normal");
-    doc.setFontSize(9);
-    doc.setTextColor(120);
-    doc.text(c.hint, margin + 3, y);
-    doc.setTextColor(0);
-    y += 5;
+    const canvas = await html2canvas(node, { scale: 2, backgroundColor: "#ffffff", useCORS: true });
+    const img = canvas.toDataURL("image/png");
+    const pdf = new jsPDF({ unit: "mm", format: "a4" });
+    const pageW = 210, pageH = 297, margin = 10;
+    const w = pageW - margin * 2;
+    const h = (canvas.height * w) / canvas.width;
 
-    // ความเห็น
-    doc.setFontSize(10);
-    doc.setFont("Sarabun", "bold");
-    doc.text("ความเห็น:", margin + 3, y);
-    doc.setFont("Sarabun", "normal");
-    const lines = doc.splitTextToSize(comment, contentW - 25);
-    doc.text(lines, margin + 25, y);
-    y += lines.length * 5 + 4;
-
-    doc.setDrawColor(220);
-    doc.line(margin, y, pageW - margin, y);
-    y += 5;
-
-    if (y > 250 && i < CRITERIA.length - 1) {
-      doc.addPage();
-      y = margin;
+    if (h <= pageH - margin * 2) {
+      pdf.addImage(img, "PNG", margin, margin, w, h);
+    } else {
+      // แบ่งหลายหน้า
+      let remaining = h, position = margin;
+      const pageContentH = pageH - margin * 2;
+      let srcY = 0;
+      const pxPerMm = canvas.width / w;
+      while (remaining > 0) {
+        const sliceH = Math.min(pageContentH, remaining);
+        const sliceCanvas = document.createElement("canvas");
+        sliceCanvas.width = canvas.width;
+        sliceCanvas.height = sliceH * pxPerMm;
+        const ctx = sliceCanvas.getContext("2d");
+        ctx.drawImage(canvas, 0, srcY, canvas.width, sliceH * pxPerMm, 0, 0, canvas.width, sliceH * pxPerMm);
+        pdf.addImage(sliceCanvas.toDataURL("image/png"), "PNG", margin, margin, w, sliceH);
+        remaining -= sliceH;
+        srcY += sliceH * pxPerMm;
+        if (remaining > 0) pdf.addPage();
+      }
     }
-  });
 
-  // ---------- ผลสรุป ----------
-  y += 2;
-  const verdictPass = ev.verdict === "pass";
-  doc.setFillColor(verdictPass ? 232 : 250, verdictPass ? 243 : 235, verdictPass ? 239 : 235);
-  doc.setDrawColor(verdictPass ? 47 : 178, verdictPass ? 111 : 58, verdictPass ? 94 : 58);
-  doc.roundedRect(margin, y, contentW, 16, 2, 2, "FD");
-  doc.setFont("Sarabun", "bold");
-  doc.setFontSize(13);
-  doc.setTextColor(verdictPass ? 47 : 178, verdictPass ? 111 : 58, verdictPass ? 94 : 58);
-  doc.text(
-    `ผลสรุปการประเมิน: ${verdictPass ? "ผ่านการประเมิน" : "ไม่ผ่านการประเมิน"}`,
-    pageW / 2,
-    y + 10,
-    { align: "center" }
-  );
-  doc.setTextColor(0);
-  y += 22;
-
-  // ความเห็นรวม
-  if (ev.overallNote) {
-    doc.setFont("Sarabun", "bold");
-    doc.setFontSize(11);
-    doc.text("ความเห็นเพิ่มเติมของผู้ประเมิน:", margin, y);
-    y += 6;
-    doc.setFont("Sarabun", "normal");
-    doc.setFontSize(10);
-    const on = doc.splitTextToSize(ev.overallNote, contentW);
-    doc.text(on, margin, y);
-    y += on.length * 5 + 6;
+    const fname = `ประเมิน_${emp.name}_${ev.week}.pdf`.replace(/\s+/g, "_");
+    pdf.save(fname);
+  } finally {
+    document.body.removeChild(holder);
   }
-
-  // ---------- ช่องลงนาม ----------
-  if (y > 240) {
-    doc.addPage();
-    y = margin;
-  }
-  y = Math.max(y, 250);
-  const colW = contentW / 2;
-  doc.setFont("Sarabun", "normal");
-  doc.setFontSize(10);
-  doc.text("ลงชื่อ ...............................................", margin, y);
-  doc.text("ลงชื่อ ...............................................", margin + colW, y);
-  y += 6;
-  doc.text("( ผู้จัดการสาขา )", margin + 8, y);
-  doc.text("( ฝ่ายทรัพยากรบุคคล )", margin + colW + 8, y);
-  y += 6;
-  doc.setFontSize(9);
-  doc.setTextColor(120);
-  doc.text(`วันที่ออกเอกสาร: ${fmtThaiDate(new Date().toISOString())}`, margin, y + 6);
-
-  const fname = `ประเมิน_${emp.name}_${ev.week}.pdf`.replace(/\s+/g, "_");
-  doc.save(fname);
 }

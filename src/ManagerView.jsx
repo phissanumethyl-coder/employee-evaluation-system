@@ -72,15 +72,16 @@ export default function ManagerView({ branch, ready, onLogout }) {
 }
 
 function EmployeeList({ employees, evals, onAdd, onEvaluate, onHistory }) {
+  const [tab, setTab] = useState("active");
   const thisWeek = getISOWeek();
   const latestEval = (id) =>
     evals.filter((e) => e.employeeId === id)
       .sort((a, b) => tsToMillis(b.evaluatedAt) - tsToMillis(a.evaluatedAt))[0] || null;
   const doneThisWeek = (id) => evals.some((e) => e.employeeId === id && e.week === thisWeek);
 
-  // แยกกลุ่ม: ยังพิจารณา/รอ HR ติดต่อ = active | บรรจุ/ยุติงาน = ประวัติ
-  const active = employees.filter((e) => !isFinished(e));
-  const finished = employees.filter((e) => isFinished(e));
+  // active = กำลังพิจารณา (ประเมินต่อได้) | history = ไม่ผ่าน/บรรจุ/ยุติงาน (จบการประเมินแล้ว)
+  const active = employees.filter((e) => canEvaluate(e));
+  const history = employees.filter((e) => !canEvaluate(e));
 
   const renderCard = (emp) => {
     const st = STATUS[emp.status] || STATUS.evaluating;
@@ -114,16 +115,12 @@ function EmployeeList({ employees, evals, onAdd, onEvaluate, onHistory }) {
             onClick={() => onEvaluate(emp)}>
             {done ? "ประเมินซ้ำสัปดาห์นี้" : "ประเมินสัปดาห์นี้"}
           </button>
-        ) : waitingHR ? (
-          <>
-            <div className="locked-note">ไม่ผ่าน — รอ HR ติดต่อพนักงาน</div>
-            <button className="btn btn-ghost full sm" onClick={() => onHistory(emp)}>ดูประวัติการประเมิน</button>
-          </>
         ) : (
           <>
             <div className="locked-note">
-              {emp.status === "hired" ? "บรรจุเป็นพนักงานแล้ว — สิ้นสุดการประเมิน"
-                : "ยุติการทำงาน — สิ้นสุดการประเมิน"}
+              {waitingHR ? "ไม่ผ่าน — รอ HR ติดต่อพนักงาน"
+                : emp.status === "hired" ? "บรรจุเป็นพนักงานแล้ว"
+                : "ยุติการทำงาน"}
             </div>
             <button className="btn btn-ghost full sm" onClick={() => onHistory(emp)}>ดูประวัติการประเมิน</button>
           </>
@@ -132,30 +129,38 @@ function EmployeeList({ employees, evals, onAdd, onEvaluate, onHistory }) {
     );
   };
 
+  const shown = tab === "active" ? active : history;
+
   return (
     <section>
       <div className="section-head">
         <div>
           <h2>พนักงานในสาขา</h2>
-          <p className="sub">{active.length} คนอยู่ระหว่างพิจารณา · {finished.length} คนสิ้นสุดแล้ว</p>
+          <p className="sub">กำลังพิจารณา {active.length} คน · ประวัติ {history.length} คน</p>
         </div>
         <button className="btn btn-primary" onClick={onAdd}>+ เพิ่มพนักงาน</button>
       </div>
 
-      {employees.length === 0 && (
+      <div className="tabs list-tabs">
+        <button className={tab === "active" ? "tab on" : "tab"} onClick={() => setTab("active")}>
+          กำลังพิจารณา ({active.length})
+        </button>
+        <button className={tab === "history" ? "tab on" : "tab"} onClick={() => setTab("history")}>
+          ประวัติ ({history.length})
+        </button>
+      </div>
+
+      {shown.length === 0 ? (
         <div className="empty">
-          <p>ยังไม่มีพนักงานใหม่ในสาขานี้</p>
-          <button className="btn btn-primary" onClick={onAdd}>เพิ่มพนักงานคนแรก</button>
+          {tab === "active" ? (
+            <>
+              <p>ยังไม่มีพนักงานที่กำลังพิจารณา</p>
+              <button className="btn btn-primary" onClick={onAdd}>+ เพิ่มพนักงาน</button>
+            </>
+          ) : <p>ยังไม่มีประวัติพนักงาน</p>}
         </div>
-      )}
-
-      {active.length > 0 && <div className="grid">{active.map(renderCard)}</div>}
-
-      {finished.length > 0 && (
-        <>
-          <h2 className="sec-title">ประวัติ (สิ้นสุดการประเมินแล้ว)</h2>
-          <div className="grid">{finished.map(renderCard)}</div>
-        </>
+      ) : (
+        <div className="grid fade-in">{shown.map(renderCard)}</div>
       )}
     </section>
   );
