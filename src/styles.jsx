@@ -143,7 +143,40 @@ export function Style() {
       .hist-main{display:flex;flex-direction:column;gap:2px}
       .nowrap{white-space:nowrap}
       .locked-note{text-align:center;color:var(--term);font-weight:600;font-size:13px;padding:8px;background:#b23a3a0d;border-radius:8px}
-      .emp-card.locked{opacity:.7}
+      .emp-card.locked{opacity:.8}
+      .info-note{margin-top:12px;background:#2f6f5e12;color:var(--accent-d);padding:12px;border-radius:10px;font-size:13px}
+
+      /* โซนแยกสี กันกดพลาด */
+      .danger-zone{background:#b23a3a08;border:1px solid #b23a3a30}
+      .danger-zone h2{color:var(--term)}
+      .success-zone{background:#2f6f5e08;border:1px solid #2f6f5e30;margin-top:16px}
+      .success-zone h2{color:var(--accent-d)}
+
+      /* card สาขาคลิกได้ */
+      .branch-card.clickable{cursor:pointer;text-align:left;width:100%;font-family:inherit;
+        border:1px solid var(--line);background:var(--card);transition:.15s;position:relative}
+      .branch-card.clickable:hover{border-color:var(--accent);box-shadow:0 6px 20px -12px rgba(0,0,0,.3);transform:translateY(-2px)}
+      .bc-head{margin-bottom:10px}
+      .bc-link{display:block;margin-top:12px;color:var(--accent);font-size:13px;font-weight:600}
+
+      /* หัวข้อกลุ่มใน drill-down */
+      .grp-title{font-size:15px;margin:24px 0 12px;padding-left:10px;border-left:4px solid var(--line)}
+      .grp-title.c-eval{border-color:var(--prob)}
+      .grp-title.c-contact{border-color:var(--term)}
+      .grp-title.c-hired{border-color:var(--pass)}
+      .grp-title.c-term{border-color:#999}
+
+      /* หน้าประวัติพนักงาน */
+      .wide-panel{max-width:720px}
+      .hist-title-row{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+      .eval-detail{border:1px solid var(--line);border-radius:12px;padding:18px;margin-top:16px;background:#fff}
+      .ed-head{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap}
+      .ed-criteria{margin-top:12px;display:flex;flex-direction:column;gap:10px}
+      .ed-crit{border-top:1px dashed var(--line);padding-top:10px}
+      .ed-crit-top{display:flex;justify-content:space-between;font-weight:600;font-size:14px}
+      .ed-rate{font-weight:700;font-size:13px}
+      .ed-comment{font-size:13px;color:#444;margin-top:4px;background:#0000000a;padding:8px 10px;border-radius:6px}
+      .ed-note{margin-top:12px;font-size:13px;background:#2f6f5e0d;padding:10px 12px;border-radius:8px}
 
       @media(max-width:640px){
         .main{padding:18px 12px}

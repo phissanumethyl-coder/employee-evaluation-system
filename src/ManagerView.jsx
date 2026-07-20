@@ -3,9 +3,10 @@ import {
   collection, addDoc, updateDoc, doc, query, where, onSnapshot, serverTimestamp,
 } from "firebase/firestore";
 import { db } from "./firebase";
-import { CRITERIA, RATINGS, STATUS, VERDICTS, getISOWeek, canEvaluate, fmtDateTime, tsToMillis } from "./config";
+import { CRITERIA, RATINGS, STATUS, VERDICTS, getISOWeek, canEvaluate, isFinished, fmtDateTime, tsToMillis, weekLabel } from "./config";
 import { generateEvaluationPDF } from "./pdfReport";
 import { Style } from "./styles";
+import HistoryView from "./EmployeeHistory";
 
 export default function ManagerView({ branch, ready, onLogout }) {
   const [employees, setEmployees] = useState([]);
@@ -34,7 +35,7 @@ export default function ManagerView({ branch, ready, onLogout }) {
       <header className="topbar">
         <div><span className="brand-mark sm">◆</span><strong>{branch.name}</strong></div>
         <div className="topbar-right">
-          <span className="week-pill">สัปดาห์นี้ · {getISOWeek()}</span>
+          <span className="week-pill">สัปดาห์นี้ · {weekLabel(getISOWeek())}</span>
           <button className="btn btn-ghost" onClick={onLogout}>ออกจากระบบ</button>
         </div>
       </header>
@@ -45,6 +46,7 @@ export default function ManagerView({ branch, ready, onLogout }) {
             employees={employees} evals={evals}
             onAdd={() => setView("add")}
             onEvaluate={(emp) => { setActiveEmp(emp); setView("evaluate"); }}
+            onHistory={(emp) => { setActiveEmp(emp); setView("history"); }}
           />
         )}
         {view === "add" && (
@@ -57,24 +59,85 @@ export default function ManagerView({ branch, ready, onLogout }) {
             onDone={() => setView("list")} onCancel={() => setView("list")}
           />
         )}
+        {view === "history" && activeEmp && (
+          <HistoryView
+            employee={activeEmp}
+            evals={evals.filter((e) => e.employeeId === activeEmp.id)}
+            onBack={() => setView("list")}
+          />
+        )}
       </main>
     </div>
   );
 }
 
-function EmployeeList({ employees, evals, onAdd, onEvaluate }) {
+function EmployeeList({ employees, evals, onAdd, onEvaluate, onHistory }) {
   const thisWeek = getISOWeek();
   const latestEval = (id) =>
     evals.filter((e) => e.employeeId === id)
       .sort((a, b) => tsToMillis(b.evaluatedAt) - tsToMillis(a.evaluatedAt))[0] || null;
   const doneThisWeek = (id) => evals.some((e) => e.employeeId === id && e.week === thisWeek);
 
+  // แยกกลุ่ม: ยังพิจารณา/รอ HR ติดต่อ = active | บรรจุ/ยุติงาน = ประวัติ
+  const active = employees.filter((e) => !isFinished(e));
+  const finished = employees.filter((e) => isFinished(e));
+
+  const renderCard = (emp) => {
+    const st = STATUS[emp.status] || STATUS.evaluating;
+    const last = latestEval(emp.id);
+    const done = doneThisWeek(emp.id);
+    const canEval = canEvaluate(emp);
+    const waitingHR = emp.status === "contact";
+    return (
+      <div key={emp.id} className={`emp-card ${!canEval ? "locked" : ""}`}>
+        <div className="emp-top">
+          <div>
+            <h3>{emp.name}</h3>
+            <p className="tiny">เริ่มงาน {emp.startDate || "-"}</p>
+          </div>
+          <span className={`badge ${st.cls}`}>{st.label}</span>
+        </div>
+        <div className="emp-meta">
+          {last ? (
+            <>
+              <span className={last.verdict === "pass" ? "ok" : "no"}>
+                {last.verdict === "pass" ? "อยู่ระหว่างพิจารณา" : "ไม่ผ่าน"}
+              </span>
+              <span className="tiny">{weekLabel(last.week)}</span>
+            </>
+          ) : <span className="tiny">ยังไม่เคยประเมิน</span>}
+        </div>
+        {last && <p className="tiny eval-time">ประเมินล่าสุด {fmtDateTime(last.evaluatedAt)}</p>}
+
+        {canEval ? (
+          <button className={`btn full ${done ? "btn-ghost" : "btn-primary"}`}
+            onClick={() => onEvaluate(emp)}>
+            {done ? "ประเมินซ้ำสัปดาห์นี้" : "ประเมินสัปดาห์นี้"}
+          </button>
+        ) : waitingHR ? (
+          <>
+            <div className="locked-note">ไม่ผ่าน — รอ HR ติดต่อพนักงาน</div>
+            <button className="btn btn-ghost full sm" onClick={() => onHistory(emp)}>ดูประวัติการประเมิน</button>
+          </>
+        ) : (
+          <>
+            <div className="locked-note">
+              {emp.status === "hired" ? "บรรจุเป็นพนักงานแล้ว — สิ้นสุดการประเมิน"
+                : "ยุติการทำงาน — สิ้นสุดการประเมิน"}
+            </div>
+            <button className="btn btn-ghost full sm" onClick={() => onHistory(emp)}>ดูประวัติการประเมิน</button>
+          </>
+        )}
+      </div>
+    );
+  };
+
   return (
     <section>
       <div className="section-head">
         <div>
-          <h2>พนักงานใหม่ในสาขา</h2>
-          <p className="sub">{employees.length} คน · แตะเพื่อประเมินสัปดาห์นี้</p>
+          <h2>พนักงานในสาขา</h2>
+          <p className="sub">{active.length} คนอยู่ระหว่างพิจารณา · {finished.length} คนสิ้นสุดแล้ว</p>
         </div>
         <button className="btn btn-primary" onClick={onAdd}>+ เพิ่มพนักงาน</button>
       </div>
@@ -86,51 +149,14 @@ function EmployeeList({ employees, evals, onAdd, onEvaluate }) {
         </div>
       )}
 
-      <div className="grid">
-        {employees.map((emp) => {
-          const st = STATUS[emp.status] || STATUS.evaluating;
-          const last = latestEval(emp.id);
-          const done = doneThisWeek(emp.id);
-          const locked = !canEvaluate(emp);
-          return (
-            <div key={emp.id} className={`emp-card ${locked ? "locked" : ""}`}>
-              <div className="emp-top">
-                <div>
-                  <h3>{emp.name}</h3>
-                  <p className="tiny">เริ่มงาน {emp.startDate || "-"}</p>
-                </div>
-                <span className={`badge ${st.cls}`}>{st.label}</span>
-              </div>
-              <div className="emp-meta">
-                {last ? (
-                  <>
-                    <span className={last.verdict === "pass" ? "ok" : "no"}>
-                      {last.verdict === "pass" ? "ผ่าน" : "ไม่ผ่าน"}
-                    </span>
-                    <span className="tiny">{last.week}</span>
-                  </>
-                ) : <span className="tiny">ยังไม่เคยประเมิน</span>}
-              </div>
-              {last && (
-                <p className="tiny eval-time">ประเมินล่าสุด {fmtDateTime(last.evaluatedAt)}</p>
-              )}
-              {locked ? (
-                <div className="locked-note">
-                  {emp.status === "hired" ? "บรรจุเป็นพนักงานแล้ว — สิ้นสุดการประเมิน"
-                    : "HR ติดต่อแล้ว — สิ้นสุดการประเมิน"}
-                </div>
-              ) : (
-                <button
-                  className={`btn full ${done ? "btn-ghost" : "btn-primary"}`}
-                  onClick={() => onEvaluate(emp)}
-                >
-                  {done ? "ประเมินซ้ำสัปดาห์นี้" : "ประเมินสัปดาห์นี้"}
-                </button>
-              )}
-            </div>
-          );
-        })}
-      </div>
+      {active.length > 0 && <div className="grid">{active.map(renderCard)}</div>}
+
+      {finished.length > 0 && (
+        <>
+          <h2 className="sec-title">ประวัติ (สิ้นสุดการประเมินแล้ว)</h2>
+          <div className="grid">{finished.map(renderCard)}</div>
+        </>
+      )}
     </section>
   );
 }
@@ -197,11 +223,13 @@ function EvaluateForm({ branch, employee, evals, onDone, onCancel }) {
         ratings, comments, verdict, overallNote: overallNote.trim(),
         evaluatedAt: serverTimestamp(),
       });
-      // อัปเดตพนักงาน: บันทึกผล+ เวลาล่าสุด (ไม่เปลี่ยน status — HR เป็นคนจัดการ)
-      await updateDoc(doc(db, "employees", employee.id), {
+      // อัปเดตพนักงาน: ถ้าไม่ผ่าน → รอ HR ติดต่อ, ถ้าผ่าน → ยังพิจารณาต่อ
+      const upd = {
         lastEvalWeek: week, lastVerdict: verdict,
         lastEvaluatedAt: serverTimestamp(),
-      });
+      };
+      if (verdict === "fail") upd.status = "contact";
+      await updateDoc(doc(db, "employees", employee.id), upd);
       onDone();
     } catch (e) { alert("บันทึกไม่สำเร็จ: " + e.message); }
     finally { setSaving(false); }
@@ -212,7 +240,7 @@ function EvaluateForm({ branch, employee, evals, onDone, onCancel }) {
       <button className="back" onClick={onCancel}>← กลับ</button>
       <div className="eval-head">
         <h2>ประเมิน · {employee.name}</h2>
-        <p className="sub">สัปดาห์ {week} · เริ่มงาน {employee.startDate}</p>
+        <p className="sub">สัปดาห์ {weekLabel(week)} · เริ่มงาน {employee.startDate}</p>
       </div>
 
       {CRITERIA.map((c, i) => (
@@ -243,7 +271,7 @@ function EvaluateForm({ branch, employee, evals, onDone, onCancel }) {
       </label>
 
       <div className="verdict-pick">
-        <span className="vp-label">ผลสรุปการประเมิน (ผู้จัดการตัดสิน)</span>
+        <span className="vp-label">ผลสรุปการประเมินสัปดาห์นี้ (ผู้จัดการตัดสิน)</span>
         <div className="rating-row">
           {VERDICTS.map((v) => (
             <button key={v.key}
@@ -256,10 +284,13 @@ function EvaluateForm({ branch, employee, evals, onDone, onCancel }) {
       </div>
 
       {anyFail && verdict === "pass" && (
-        <div className="warn">มีบางหัวข้อได้ "ไม่ผ่าน" แต่ผลสรุปเป็นผ่าน — ตรวจสอบอีกครั้งก่อนบันทึก</div>
+        <div className="warn">มีบางหัวข้อได้ "ไม่ผ่าน" แต่ผลสรุปยังพิจารณาต่อ — ตรวจสอบอีกครั้งก่อนบันทึก</div>
+      )}
+      {verdict === "pass" && (
+        <div className="info-note">ผลนี้ = พนักงานอยู่ในช่วงพิจารณาต่อ สามารถประเมินได้อีกในสัปดาห์ถัดไป</div>
       )}
       {verdict === "fail" && (
-        <div className="warn">ผลสรุป "ไม่ผ่าน" จะถูก flag แจ้งเตือนฝ่าย HR ให้ติดต่อพนักงาน</div>
+        <div className="warn">ผลสรุป "ไม่ผ่าน" จะเปลี่ยนสถานะเป็น "รอ HR ติดต่อ" และหยุดการประเมิน — HR จะเห็นในระบบทันที</div>
       )}
 
       <div className="row-btns">
@@ -277,10 +308,9 @@ function EvaluateForm({ branch, employee, evals, onDone, onCancel }) {
             <div key={h.id} className="hist-row">
               <div className="hist-main">
                 <span className={h.verdict === "pass" ? "ok" : "no"}>
-                  {h.verdict === "pass" ? "ผ่าน" : "ไม่ผ่าน"}
+                  {h.verdict === "pass" ? "อยู่ระหว่างพิจารณา" : "ไม่ผ่าน"}
                 </span>
-                <span className="tiny"> · {h.week}</span>
-                <div className="tiny">{fmtDateTime(h.evaluatedAt)}</div>
+                <div className="tiny">{weekLabel(h.week)} · {fmtDateTime(h.evaluatedAt)}</div>
               </div>
               <button className="link-btn" onClick={() => generateEvaluationPDF(employee, h)}>
                 ดาวน์โหลด PDF
