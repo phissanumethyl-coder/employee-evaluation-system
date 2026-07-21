@@ -26,17 +26,18 @@ function buildFormHTML(emp, ev) {
   const verdictColor = verdictPass ? "#2563eb" : "#dc2626";
 
   const critRows = CRITERIA.map((c) => {
-    const r = ratingInfo(ev.ratings?.[c.key]);
-    const items = (c.items || []).map((it) =>
-      `<li style="margin-bottom:2px;"><b>${it.title}</b> — <span style="color:#475569;">${it.desc}</span></li>`
-    ).join("");
+    const items = (c.items || []).map((it) => {
+      const r = ratingInfo(ev.ratings?.[it.key]);
+      return `
+        <div style="display:flex;justify-content:space-between;align-items:baseline;gap:10px;padding:3px 0 3px 14px;">
+          <span style="font-size:11.5px;color:#0f172a;"><b>${it.title}</b> <span style="color:#64748b;">— ${it.desc}</span></span>
+          <span style="font-weight:700;font-size:11.5px;color:${r.color};white-space:nowrap;">[ ${r.label} ]</span>
+        </div>`;
+    }).join("");
     return `
-      <div style="padding:8px 0;border-bottom:1px solid #e5e7eb;">
-        <div style="display:flex;justify-content:space-between;align-items:baseline;gap:12px;">
-          <span style="font-weight:700;font-size:14px;color:#0f172a;">${c.label}</span>
-          <span style="font-weight:700;font-size:14px;color:${r.color};white-space:nowrap;">[ ${r.label} ]</span>
-        </div>
-        <ul style="margin:5px 0 0 18px;padding:0;font-size:11.5px;color:#0f172a;line-height:1.45;">${items}</ul>
+      <div style="padding:6px 0;border-bottom:1px solid #e5e7eb;">
+        <div style="font-weight:700;font-size:13.5px;color:#1e3a8a;">${c.label}</div>
+        ${items}
       </div>`;
   }).join("");
 

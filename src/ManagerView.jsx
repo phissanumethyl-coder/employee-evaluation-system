@@ -3,7 +3,7 @@ import {
   collection, addDoc, updateDoc, doc, query, where, onSnapshot, serverTimestamp,
 } from "firebase/firestore";
 import { db } from "./firebase";
-import { CRITERIA, RATINGS, STATUS, VERDICTS, getISOWeek, canEvaluate, isFinished, fmtDateTime, tsToMillis, weekLabel } from "./config";
+import { CRITERIA, SUB_ITEMS, RATINGS, STATUS, VERDICTS, getISOWeek, canEvaluate, isFinished, fmtDateTime, tsToMillis, weekLabel } from "./config";
 import { generateEvaluationPDF } from "./pdfReport";
 import { Style } from "./styles";
 import HistoryView from "./EmployeeHistory";
@@ -218,7 +218,7 @@ function AddEmployee({ branch, onDone, onCancel, onNotify }) {
 function EvaluateForm({ branch, employee, evals, onDone, onCancel, onNotify }) {
   const week = getISOWeek();
   const [ratings, setRatings] = useState(
-    CRITERIA.reduce((a, c) => ({ ...a, [c.key]: "pass" }), {})
+    SUB_ITEMS.reduce((a, it) => ({ ...a, [it.key]: "pass" }), {})
   );
   const [verdict, setVerdict] = useState("pass");
   const [overallNote, setOverallNote] = useState("");
@@ -261,22 +261,25 @@ function EvaluateForm({ branch, employee, evals, onDone, onCancel, onNotify }) {
       </div>
 
       {CRITERIA.map((c) => (
-        <div key={c.key} className="crit">
-          <div className="crit-label"><span>{c.label}</span></div>
-          <ul className="crit-items">
-            {c.items.map((it, idx) => (
-              <li key={idx}><b>{it.title}</b> — {it.desc}</li>
-            ))}
-          </ul>
-          <div className="rating-row">
-            {RATINGS.map((r) => (
-              <button key={r.key}
-                className={`rate ${ratings[c.key] === r.key ? "on" : ""}`}
-                style={ratings[c.key] === r.key ? { background: r.color, borderColor: r.color, color: "#fff" } : {}}
-                onClick={() => setRatings((s) => ({ ...s, [c.key]: r.key }))}
-              >{r.label}</button>
-            ))}
-          </div>
+        <div key={c.key} className="crit-group">
+          <div className="crit-group-label">{c.label}</div>
+          {c.items.map((it) => (
+            <div key={it.key} className="sub-crit">
+              <div className="sub-crit-head">
+                <b>{it.title}</b>
+                <span className="tiny">{it.desc}</span>
+              </div>
+              <div className="rating-row">
+                {RATINGS.map((r) => (
+                  <button key={r.key}
+                    className={`rate ${ratings[it.key] === r.key ? "on" : ""}`}
+                    style={ratings[it.key] === r.key ? { background: r.color, borderColor: r.color, color: "#fff" } : {}}
+                    onClick={() => setRatings((s) => ({ ...s, [it.key]: r.key }))}
+                  >{r.label}</button>
+                ))}
+              </div>
+            </div>
+          ))}
         </div>
       ))}
 

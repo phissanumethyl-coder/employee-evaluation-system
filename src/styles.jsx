@@ -218,6 +218,20 @@ export function Style() {
       .crit-items li{margin-bottom:3px}
       .crit-items b{color:#0f172a}
 
+      /* กลุ่มด้านใหญ่ + หัวข้อย่อยประเมินแยก */
+      .crit-group{margin-bottom:22px;padding:16px;background:#f8fafc;border:1px solid var(--line);border-radius:14px}
+      .crit-group-label{font-weight:700;font-size:15.5px;color:var(--accent-d);margin-bottom:14px;padding-bottom:10px;border-bottom:2px solid #dbe4f0}
+      .sub-crit{padding:12px 0;border-bottom:1px dashed var(--line)}
+      .sub-crit:last-child{border-bottom:none;padding-bottom:0}
+      .sub-crit-head{margin-bottom:8px}
+      .sub-crit-head b{display:block;font-size:14.5px;color:#0f172a}
+      .sub-crit-head .tiny{display:block;margin-top:2px}
+
+      /* ประวัติ: กลุ่ม + หัวข้อย่อย */
+      .ed-group{margin-top:12px}
+      .ed-group-label{font-weight:700;font-size:13.5px;color:var(--accent-d);margin-bottom:4px}
+      .ed-group .ed-crit{padding-left:12px}
+
       /* ช่องความเห็นจำเป็น */
       .field-required{border-color:#fca5a5 !important;background:#fef2f2 !important}
       .err-shake{animation:shake .4s ease}

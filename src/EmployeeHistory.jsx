@@ -20,17 +20,22 @@ function EvalCard({ emp, ev }) {
       <p className="tiny">ประเมินเมื่อ {fmtDateTime(ev.evaluatedAt)}</p>
 
       <div className="ed-criteria">
-        {CRITERIA.map((c) => {
-          const r = ratingInfo(ev.ratings?.[c.key]);
-          return (
-            <div key={c.key} className="ed-crit">
-              <div className="ed-crit-top">
-                <span>{c.label}</span>
-                <span className="ed-rate" style={{ color: r.color }}>{r.label}</span>
-              </div>
-            </div>
-          );
-        })}
+        {CRITERIA.map((c) => (
+          <div key={c.key} className="ed-group">
+            <div className="ed-group-label">{c.label}</div>
+            {c.items.map((it) => {
+              const r = ratingInfo(ev.ratings?.[it.key]);
+              return (
+                <div key={it.key} className="ed-crit">
+                  <div className="ed-crit-top">
+                    <span>{it.title}</span>
+                    <span className="ed-rate" style={{ color: r.color }}>{r.label}</span>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        ))}
       </div>
       {ev.overallNote && (
         <div className="ed-note"><strong>ความเห็นรวม:</strong> {ev.overallNote}</div>
