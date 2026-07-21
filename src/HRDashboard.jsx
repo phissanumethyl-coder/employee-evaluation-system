@@ -2,15 +2,17 @@ import React, { useState, useEffect, useMemo } from "react";
 import { collection, onSnapshot, doc, updateDoc } from "firebase/firestore";
 import { db } from "./firebase";
 import {
-  BRANCHES, getISOWeek, getMonthKey, branchName, fmtDateTime, tsToMillis,
+  getISOWeek, getMonthKey, branchName, fmtDateTime, tsToMillis,
   canEvaluate, isFinished, weekLabel, STATUS,
 } from "./config";
 import { generateEvaluationPDF } from "./pdfReport";
 import { Style } from "./styles";
 import EmployeeHistory from "./EmployeeHistory";
 import ConfirmModal from "./Modal";
+import BranchManager from "./BranchManager";
+import Toast from "./Toast";
 
-export default function HRDashboard({ ready, onLogout }) {
+export default function HRDashboard({ ready, branches, onLogout }) {
   const [employees, setEmployees] = useState([]);
   const [evals, setEvals] = useState([]);
   const [period, setPeriod] = useState("week");
@@ -21,6 +23,8 @@ export default function HRDashboard({ ready, onLogout }) {
   const [drill, setDrill] = useState(null);   // สาขาที่คลิกดู
   const [histEmp, setHistEmp] = useState(null); // พนักงานที่ดูประวัติ
   const [confirm, setConfirm] = useState(null); // {emp, status} สำหรับ modal ยืนยัน
+  const [manageBranch, setManageBranch] = useState(false);
+  const [toast, setToast] = useState("");
 
   useEffect(() => {
     if (!ready) return;
@@ -70,7 +74,7 @@ export default function HRDashboard({ ready, onLogout }) {
   }), [periodEvals]);
 
   const byBranch = useMemo(() =>
-    BRANCHES.map((b) => {
+    branches.map((b) => {
       const rows = periodEvals.filter((e) => e.branchId === b.id);
       const emps = employees.filter((e) => e.branchId === b.id);
       return {
@@ -79,7 +83,7 @@ export default function HRDashboard({ ready, onLogout }) {
         fail: rows.filter((e) => e.verdict === "fail").length,
         headcount: emps.length,
       };
-    }), [periodEvals, employees]);
+    }), [periodEvals, employees, branches]);
 
   // ===== 2 กลุ่มแยกกัน กันกดพลาด =====
   // กลุ่ม 1: ไม่ผ่าน → รอ HR ติดต่อยุติงาน (status = contact)
@@ -114,6 +118,27 @@ export default function HRDashboard({ ready, onLogout }) {
   }
 
   // ===== หน้าดูประวัติพนักงาน 1 คน =====
+  // ===== หน้าจัดการสาขา =====
+  if (manageBranch) {
+    return (
+      <div className="wrap">
+        <Style />
+        <header className="topbar">
+          <div><span className="brand-mark sm">◆</span><strong>HR · จัดการสาขา</strong></div>
+          <button className="btn btn-ghost" onClick={onLogout}>ออกจากระบบ</button>
+        </header>
+        <main className="main">
+          <BranchManager
+            branches={branches} employees={employees}
+            onBack={() => setManageBranch(false)}
+            onNotify={(msg) => setToast(msg)}
+          />
+        </main>
+        <Toast message={toast} onClose={() => setToast("")} />
+      </div>
+    );
+  }
+
   if (histEmp) {
     return (
       <div className="wrap">
@@ -200,7 +225,10 @@ export default function HRDashboard({ ready, onLogout }) {
       <Style />
       <header className="topbar">
         <div><span className="brand-mark sm">◆</span><strong>HR ส่วนกลาง · ภาพรวมทุกสาขา</strong></div>
-        <button className="btn btn-ghost" onClick={onLogout}>ออกจากระบบ</button>
+        <div className="topbar-right">
+          <button className="btn btn-ghost" onClick={() => setManageBranch(true)}>จัดการสาขา</button>
+          <button className="btn btn-ghost" onClick={onLogout}>ออกจากระบบ</button>
+        </div>
       </header>
 
       <main className="main wide">
@@ -300,7 +328,7 @@ export default function HRDashboard({ ready, onLogout }) {
           <div className="filters">
             <select value={fBranch} onChange={(e) => setFBranch(e.target.value)}>
               <option value="all">ทุกสาขา</option>
-              {BRANCHES.map((b) => <option key={b.id} value={b.id}>{b.name}</option>)}
+              {branches.map((b) => <option key={b.id} value={b.id}>{b.name}</option>)}
             </select>
             <select value={fVerdict} onChange={(e) => setFVerdict(e.target.value)}>
               <option value="all">ทุกผล</option>
@@ -348,6 +376,7 @@ export default function HRDashboard({ ready, onLogout }) {
         onConfirm={() => doSetStatus(confirm.emp, confirm.status)}
         onCancel={() => setConfirm(null)}
       />
+      <Toast message={toast} onClose={() => setToast("")} />
     </div>
   );
 }

@@ -1,5 +1,7 @@
-// ===== 8 สาขา (ภาคอีสาน) + รหัสผ่านผู้จัดการต่อสาขา =====
-export const BRANCHES = [
+// ===== สาขาเริ่มต้น 8 สาขา (ใช้ seed ลง Firestore ครั้งแรกเท่านั้น) =====
+// หลัง seed แล้ว ระบบจะอ่านสาขาจาก Firestore collection "branches"
+// การเพิ่ม/แก้/ลบสาขา ทำผ่านหน้า "จัดการสาขา" ฝั่ง HR
+export const DEFAULT_BRANCHES = [
   { id: "roiet", name: "สาขาร้อยเอ็ด", pass: "roiet01" },
   { id: "ubon", name: "สาขาอุบลราชธานี", pass: "ubon01" },
   { id: "kalasin", name: "สาขากาฬสินธุ์", pass: "kalasin01" },
@@ -140,6 +142,15 @@ export function tsToMillis(ts) {
   return isNaN(d) ? 0 : d.getTime();
 }
 
+// registry สาขาปัจจุบัน (อัปเดตโดย App เมื่อโหลดจาก Firestore)
+// ทำให้ branchName() ใช้ได้ทุกที่โดยไม่ต้องส่ง list ไปทุกฟังก์ชัน
+let _branchRegistry = [...DEFAULT_BRANCHES];
+export function setBranchRegistry(list) {
+  _branchRegistry = Array.isArray(list) && list.length ? list : DEFAULT_BRANCHES;
+}
+export function getBranches() {
+  return _branchRegistry;
+}
 export function branchName(id) {
-  return BRANCHES.find((b) => b.id === id)?.name || id;
+  return _branchRegistry.find((b) => b.id === id)?.name || id;
 }

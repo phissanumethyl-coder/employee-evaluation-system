@@ -58,7 +58,7 @@ function buildFormHTML(emp, ev) {
     <div style="margin-top:3px;color:#334155;">${(ev.overallNote || "-").replace(/</g, "&lt;")}</div></div>`;
 
   return `
-    <div style="width:760px;padding:32px 44px;background:#fff;font-family:'IBM Plex Sans Thai',sans-serif;box-sizing:border-box;color:#0f172a;">
+    <div style="width:760px;padding:32px 44px;background:#fff;font-family:'Noto Sans Thai',sans-serif;box-sizing:border-box;color:#0f172a;">
       <div style="display:flex;align-items:center;gap:16px;border-bottom:2px solid #1e3a8a;padding-bottom:12px;margin-bottom:14px;">
         <img src="${LOGO_DATA_URL}" style="width:66px;height:66px;object-fit:contain;" />
         <div style="flex:1;">

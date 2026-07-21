@@ -3,7 +3,7 @@ import React from "react";
 export function Style() {
   return (
     <style>{`
-      @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Thai:wght@400;500;600;700&family=Space+Grotesk:wght@500;700&display=swap');
+      @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+Thai:wght@400;500;600;700&display=swap');
       *{box-sizing:border-box;margin:0;padding:0}
       :root{
         --ink:#0f172a; --paper:#f0f4f9; --card:#ffffff;
@@ -13,8 +13,8 @@ export function Style() {
         --pass:#2563eb; --term:#dc2626; --prob:#d97706;
       }
       .wrap{min-height:100vh;background:linear-gradient(180deg,#f0f4f9 0%,#e8eef6 100%);color:var(--ink);
-        font-family:'IBM Plex Sans Thai',system-ui,sans-serif}
-      h1,h2,h3{font-family:'Space Grotesk','IBM Plex Sans Thai',sans-serif;letter-spacing:-.01em}
+        font-family:'Noto Sans Thai',system-ui,sans-serif}
+      h1,h2,h3{font-family:'Noto Sans Thai',sans-serif;letter-spacing:-.01em;font-weight:700}
       .sub{color:var(--muted);font-size:14px}
       .tiny{color:var(--muted);font-size:12px}
 
@@ -129,7 +129,7 @@ export function Style() {
 
       .stat-row{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-bottom:24px}
       .stat{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:20px;text-align:center}
-      .stat-n{display:block;font-family:'Space Grotesk';font-size:34px;font-weight:700}
+      .stat-n{display:block;font-size:34px;font-weight:700}
       .stat-l{font-size:13px;color:var(--muted)}
       .stat.pass .stat-n{color:var(--pass)} .stat.fail .stat-n{color:var(--term)}
 
@@ -143,7 +143,7 @@ export function Style() {
       .branch-card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:18px}
       .branch-card h3{font-size:16px;margin-bottom:12px}
       .bc-stats{display:flex;justify-content:space-between;text-align:center}
-      .bc-stats .n{display:block;font-family:'Space Grotesk';font-size:22px;font-weight:700}
+      .bc-stats .n{display:block;font-size:22px;font-weight:700}
       .bc-stats .l{font-size:11px;color:var(--muted)}
       .bc-stats .pass .n{color:var(--pass)} .bc-stats .fail .n{color:var(--term)} .bc-stats .review .n{color:#ca8a04}
       .bc-alert{margin-top:12px;background:#dc262614;color:var(--term);padding:6px 10px;border-radius:8px;font-size:12px;text-align:center;font-weight:600}
@@ -212,6 +212,20 @@ export function Style() {
       .login-card{animation:popIn .35s cubic-bezier(.16,1,.3,1) both}
       .login-brand{flex-direction:column;text-align:center;gap:10px}
       .login-logo{width:88px;height:88px;object-fit:contain;filter:drop-shadow(0 6px 14px rgba(37,99,235,.25))}
+
+      /* จัดการสาขา */
+      .add-branch{background:#f8fafc;border:1px solid var(--line);border-radius:14px;padding:18px;margin:16px 0 8px}
+      .add-branch h3{font-size:15px;margin-bottom:12px}
+      .add-branch-row{display:flex;gap:10px;flex-wrap:wrap}
+      .add-branch-row input{flex:1;min-width:160px;padding:11px 14px;border:1px solid var(--line);border-radius:10px;font-family:inherit;font-size:14px}
+      .branch-list{display:flex;flex-direction:column;gap:10px;margin-top:12px}
+      .branch-row{display:flex;justify-content:space-between;align-items:center;gap:12px;
+        padding:14px 16px;background:#fff;border:1px solid var(--line);border-radius:12px;flex-wrap:wrap}
+      .branch-info strong{font-size:15px}
+      .branch-actions{display:flex;gap:8px}
+      .branch-edit{display:flex;gap:8px;width:100%;flex-wrap:wrap;align-items:center}
+      .branch-edit input{flex:1;min-width:140px;padding:9px 12px;border:1px solid var(--line);border-radius:8px;font-family:inherit;font-size:14px}
+      .branch-edit-btns{display:flex;gap:8px}
 
       /* หัวข้อย่อยในฟอร์มประเมิน */
       .crit-items{margin:8px 0 0 18px;padding:0;font-size:13px;color:#334155;line-height:1.55}

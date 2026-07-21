@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from "react";
 import { signInAnonymously } from "firebase/auth";
 import { auth } from "./firebase";
-import { BRANCHES, HR_PASS } from "./config";
+import { HR_PASS, DEFAULT_BRANCHES, setBranchRegistry } from "./config";
+import { seedBranchesIfEmpty, subscribeBranches } from "./branchStore";
 import { LOGO_DATA_URL } from "./logo";
 import { Style } from "./styles";
 import ManagerView from "./ManagerView";
@@ -9,28 +10,36 @@ import HRDashboard from "./HRDashboard";
 
 export default function App() {
   const [session, setSession] = useState(() => {
-    // คงสถานะล็อกอินไว้เมื่อ refresh (จนกว่าจะออกจากระบบ)
     try {
       const saved = sessionStorage.getItem("eval_session");
       return saved ? JSON.parse(saved) : null;
     } catch { return null; }
   });
-  const [mode, setMode] = useState("manager"); // manager | hr (แท็บใน login)
-  const [pickBranch, setPickBranch] = useState(BRANCHES[0].id);
+  const [mode, setMode] = useState("manager");
+  const [branches, setBranches] = useState(DEFAULT_BRANCHES);
+  const [pickBranch, setPickBranch] = useState(DEFAULT_BRANCHES[0].id);
   const [passInput, setPassInput] = useState("");
   const [err, setErr] = useState("");
   const [ready, setReady] = useState(false);
 
   useEffect(() => {
+    let unsub = () => {};
     signInAnonymously(auth)
-      .then(() => setReady(true))
-      .catch((e) => {
-        console.error(e);
+      .then(async () => {
+        try { await seedBranchesIfEmpty(); } catch (e) { console.error("seed", e); }
+        // ฟังสาขาแบบ realtime
+        unsub = subscribeBranches((rows) => {
+          const list = rows.length ? rows : DEFAULT_BRANCHES;
+          setBranches(list);
+          setBranchRegistry(list); // อัปเดต registry ให้ branchName() ใช้
+          setPickBranch((cur) => (list.find((b) => b.id === cur) ? cur : list[0]?.id));
+        });
         setReady(true);
-      });
+      })
+      .catch((e) => { console.error(e); setReady(true); });
+    return () => unsub();
   }, []);
 
-  // บันทึก/ลบ session เมื่อเปลี่ยน
   useEffect(() => {
     try {
       if (session) sessionStorage.setItem("eval_session", JSON.stringify(session));
@@ -52,7 +61,7 @@ export default function App() {
       } else setErr("รหัส HR ไม่ถูกต้อง");
       return;
     }
-    const b = BRANCHES.find((x) => x.id === pickBranch);
+    const b = branches.find((x) => x.id === pickBranch);
     if (b && passInput.trim() === b.pass) {
       setSession({ role: "manager", branchId: b.id });
       setPassInput("");
@@ -73,16 +82,12 @@ export default function App() {
           </div>
 
           <div className="tabs">
-            <button
-              className={mode === "manager" ? "tab on" : "tab"}
-              onClick={() => { setMode("manager"); setErr(""); }}
-            >
+            <button className={mode === "manager" ? "tab on" : "tab"}
+              onClick={() => { setMode("manager"); setErr(""); }}>
               ผู้จัดการสาขา
             </button>
-            <button
-              className={mode === "hr" ? "tab on" : "tab"}
-              onClick={() => { setMode("hr"); setErr(""); }}
-            >
+            <button className={mode === "hr" ? "tab on" : "tab"}
+              onClick={() => { setMode("hr"); setErr(""); }}>
               ฝ่าย HR ส่วนกลาง
             </button>
           </div>
@@ -91,7 +96,7 @@ export default function App() {
             <label className="fld">
               <span>เลือกสาขาของคุณ</span>
               <select value={pickBranch} onChange={(e) => setPickBranch(e.target.value)}>
-                {BRANCHES.map((b) => (
+                {branches.map((b) => (
                   <option key={b.id} value={b.id}>{b.name}</option>
                 ))}
               </select>
@@ -100,36 +105,27 @@ export default function App() {
 
           <label className="fld">
             <span>{mode === "hr" ? "รหัสผ่าน HR" : "รหัสผ่านผู้จัดการสาขา"}</span>
-            <input
-              type="password"
-              value={passInput}
-              placeholder="กรอกรหัสผ่าน"
+            <input type="password" value={passInput} placeholder="กรอกรหัสผ่าน"
               onChange={(e) => setPassInput(e.target.value)}
-              onKeyDown={(e) => e.key === "Enter" && login()}
-            />
+              onKeyDown={(e) => e.key === "Enter" && login()} />
           </label>
 
           {err && <div className="err">{err}</div>}
 
-          <button className="btn btn-primary full" onClick={login}>
-            เข้าสู่ระบบ
-          </button>
+          <button className="btn btn-primary full" onClick={login}>เข้าสู่ระบบ</button>
         </div>
       </div>
     );
   }
 
   if (session.role === "hr") {
-    return <HRDashboard ready={ready} onLogout={logout} />;
+    return <HRDashboard ready={ready} branches={branches} onLogout={logout} />;
   }
-  // resolve branch ปัจจุบันจาก id (ไม่เก็บรหัสผ่านลง storage)
-  const activeBranch = BRANCHES.find((b) => b.id === session.branchId) || session.branch;
-  if (!activeBranch) { logout(); return null; }
-  return (
-    <ManagerView
-      branch={activeBranch}
-      ready={ready}
-      onLogout={logout}
-    />
-  );
+  const activeBranch = branches.find((b) => b.id === session.branchId);
+  if (!activeBranch) {
+    // สาขาถูกลบ หรือยังโหลดไม่เสร็จ
+    if (ready && branches.length) { logout(); return null; }
+    return <div className="wrap"><Style /><div style={{padding:40,textAlign:"center"}}>กำลังโหลด...</div></div>;
+  }
+  return <ManagerView branch={activeBranch} ready={ready} onLogout={logout} />;
 }

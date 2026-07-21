@@ -6,6 +6,11 @@ service cloud.firestore {
       return request.auth != null;
     }
 
+    match /branches/{branchId} {
+      allow read: if signedIn();
+      allow create, update, delete: if signedIn();
+    }
+
     match /employees/{empId} {
       allow read: if signedIn();
       allow create: if signedIn()
