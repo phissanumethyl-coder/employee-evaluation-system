@@ -1,0 +1,9 @@
+[build]
+  command = "npm run build"
+  publish = "dist"
+
+# SPA: ทุก path ให้ชี้กลับ index.html (กัน 404 ตอน refresh หน้าย่อย)
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200
