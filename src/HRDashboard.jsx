@@ -153,7 +153,7 @@ export default function HRDashboard({ ready, onLogout }) {
             return (
               <div key={emp.id} className="emp-card">
                 <div className="emp-top">
-                  <div><h3>{emp.name}</h3><p className="tiny">เริ่มงาน {emp.startDate || "-"}</p></div>
+                  <div><h3>{emp.name}{emp.nickname ? ` (${emp.nickname})` : ""}</h3><p className="tiny">เริ่มงาน {emp.startDate || "-"}</p></div>
                   <span className={`badge ${st.cls}`}>{st.label}</span>
                 </div>
                 <div className="emp-meta">
@@ -182,7 +182,7 @@ export default function HRDashboard({ ready, onLogout }) {
           <button className="btn btn-ghost" onClick={onLogout}>ออกจากระบบ</button>
         </header>
         <main className="main">
-          <button className="back" onClick={() => setDrill(null)}>← กลับหน้าภาพรวม</button>
+          <button className="back" onClick={() => setDrill(null)}>กลับหน้าภาพรวม</button>
           <h2 className="sec-title" style={{ marginTop: 8 }}>พนักงานทั้งหมด · {drill.name} ({emps.length} คน)</h2>
           {emps.length === 0 && <div className="empty sm">สาขานี้ยังไม่มีพนักงาน</div>}
           <Section title="อยู่ในช่วงพิจารณาทดลองงาน" list={grp.evaluating} cls="c-eval" />
@@ -234,7 +234,7 @@ export default function HRDashboard({ ready, onLogout }) {
           {toContact.map(({ emp, latest }) => (
             <div key={emp.id} className="flag-row">
               <div>
-                <strong>{emp.name}</strong>
+                <strong>{emp.name}{emp.nickname ? ` (${emp.nickname})` : ""}</strong>
                 <span className="tiny"> · {branchName(emp.branchId)}</span>
                 <div className="tiny">
                   ไม่ผ่าน · สัปดาห์ที่ประเมิน {latest ? weekLabel(latest.week) : "-"} · เวลาประเมิน {latest ? fmtDateTime(latest.evaluatedAt) : ""}
@@ -259,7 +259,7 @@ export default function HRDashboard({ ready, onLogout }) {
           {toHire.map(({ emp, latest }) => (
             <div key={emp.id} className="flag-row pass-row">
               <div>
-                <strong>{emp.name}</strong>
+                <strong>{emp.name}{emp.nickname ? ` (${emp.nickname})` : ""}</strong>
                 <span className="tiny"> · {branchName(emp.branchId)}</span>
                 <div className="tiny">
                   อยู่ระหว่างพิจารณา · สัปดาห์ที่ประเมิน {weekLabel(latest.week)} · เวลาประเมิน {fmtDateTime(latest.evaluatedAt)}

@@ -7,12 +7,14 @@ import { CRITERIA, RATINGS, STATUS, VERDICTS, getISOWeek, canEvaluate, isFinishe
 import { generateEvaluationPDF } from "./pdfReport";
 import { Style } from "./styles";
 import HistoryView from "./EmployeeHistory";
+import Toast from "./Toast";
 
 export default function ManagerView({ branch, ready, onLogout }) {
   const [employees, setEmployees] = useState([]);
   const [evals, setEvals] = useState([]);
   const [view, setView] = useState("list");
   const [activeEmp, setActiveEmp] = useState(null);
+  const [toast, setToast] = useState("");
 
   useEffect(() => {
     if (!ready) return;
@@ -50,13 +52,15 @@ export default function ManagerView({ branch, ready, onLogout }) {
           />
         )}
         {view === "add" && (
-          <AddEmployee branch={branch} onDone={() => setView("list")} onCancel={() => setView("list")} />
+          <AddEmployee branch={branch} onDone={() => setView("list")} onCancel={() => setView("list")}
+            onNotify={(msg) => setToast(msg)} />
         )}
         {view === "evaluate" && activeEmp && (
           <EvaluateForm
             branch={branch} employee={activeEmp}
             evals={evals.filter((e) => e.employeeId === activeEmp.id)}
             onDone={() => setView("list")} onCancel={() => setView("list")}
+            onNotify={(msg) => setToast(msg)}
           />
         )}
         {view === "history" && activeEmp && (
@@ -67,6 +71,7 @@ export default function ManagerView({ branch, ready, onLogout }) {
           />
         )}
       </main>
+      <Toast message={toast} onClose={() => setToast("")} />
     </div>
   );
 }
@@ -93,7 +98,7 @@ function EmployeeList({ employees, evals, onAdd, onEvaluate, onHistory }) {
       <div key={emp.id} className={`emp-card ${!canEval ? "locked" : ""}`}>
         <div className="emp-top">
           <div>
-            <h3>{emp.name}</h3>
+            <h3>{emp.name}{emp.nickname ? ` (${emp.nickname})` : ""}</h3>
             <p className="tiny">เริ่มงาน {emp.startDate || "-"}</p>
           </div>
           <span className={`badge ${st.cls}`}>{st.label}</span>
@@ -166,8 +171,9 @@ function EmployeeList({ employees, evals, onAdd, onEvaluate, onHistory }) {
   );
 }
 
-function AddEmployee({ branch, onDone, onCancel }) {
+function AddEmployee({ branch, onDone, onCancel, onNotify }) {
   const [name, setName] = useState("");
+  const [nickname, setNickname] = useState("");
   const [startDate, setStartDate] = useState(new Date().toISOString().slice(0, 10));
   const [saving, setSaving] = useState(false);
 
@@ -176,9 +182,11 @@ function AddEmployee({ branch, onDone, onCancel }) {
     setSaving(true);
     try {
       await addDoc(collection(db, "employees"), {
-        name: name.trim(), branchId: branch.id, branchName: branch.name,
+        name: name.trim(), nickname: nickname.trim(),
+        branchId: branch.id, branchName: branch.name,
         startDate, status: "evaluating", createdAt: serverTimestamp(),
       });
+      if (onNotify) onNotify("เพิ่มพนักงานสำเร็จแล้ว");
       onDone();
     } catch (e) { alert("บันทึกไม่สำเร็จ: " + e.message); }
     finally { setSaving(false); }
@@ -186,10 +194,13 @@ function AddEmployee({ branch, onDone, onCancel }) {
 
   return (
     <section className="form-panel">
-      <button className="back" onClick={onCancel}>← กลับ</button>
+      <button className="back" onClick={onCancel}>กลับ</button>
       <h2>เพิ่มพนักงานใหม่</h2>
-      <label className="fld"><span>ชื่อ–นามสกุล</span>
+      <label className="fld"><span>ชื่อ–นามสกุล (ชื่อจริง)</span>
         <input value={name} onChange={(e) => setName(e.target.value)} placeholder="เช่น สมชาย ใจดี" />
+      </label>
+      <label className="fld"><span>ชื่อเล่น</span>
+        <input value={nickname} onChange={(e) => setNickname(e.target.value)} placeholder="เช่น ชาย" />
       </label>
       <label className="fld"><span>วันเริ่มงาน</span>
         <input type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} />
@@ -204,28 +215,28 @@ function AddEmployee({ branch, onDone, onCancel }) {
   );
 }
 
-function EvaluateForm({ branch, employee, evals, onDone, onCancel }) {
+function EvaluateForm({ branch, employee, evals, onDone, onCancel, onNotify }) {
   const week = getISOWeek();
   const [ratings, setRatings] = useState(
     CRITERIA.reduce((a, c) => ({ ...a, [c.key]: "pass" }), {})
   );
-  const [comments, setComments] = useState(
-    CRITERIA.reduce((a, c) => ({ ...a, [c.key]: "" }), {})
-  );
   const [verdict, setVerdict] = useState("pass");
   const [overallNote, setOverallNote] = useState("");
   const [saving, setSaving] = useState(false);
+  const [showErr, setShowErr] = useState(false);
 
   const history = [...evals].sort((a, b) => tsToMillis(b.evaluatedAt) - tsToMillis(a.evaluatedAt));
   const anyFail = Object.values(ratings).some((r) => r === "fail");
+  const noteOk = overallNote.trim().length > 0;
 
   async function submit() {
+    if (!noteOk) { setShowErr(true); return; }
     setSaving(true);
     try {
       await addDoc(collection(db, "evaluations"), {
         employeeId: employee.id, employeeName: employee.name,
         branchId: branch.id, week,
-        ratings, comments, verdict, overallNote: overallNote.trim(),
+        ratings, verdict, overallNote: overallNote.trim(),
         evaluatedAt: serverTimestamp(),
       });
       // อัปเดตพนักงาน: ถ้าไม่ผ่าน → รอ HR ติดต่อ, ถ้าผ่าน → ยังพิจารณาต่อ
@@ -235,6 +246,7 @@ function EvaluateForm({ branch, employee, evals, onDone, onCancel }) {
       };
       if (verdict === "fail") upd.status = "contact";
       await updateDoc(doc(db, "employees", employee.id), upd);
+      if (onNotify) onNotify("ยืนยันผลประเมินสำเร็จแล้ว");
       onDone();
     } catch (e) { alert("บันทึกไม่สำเร็จ: " + e.message); }
     finally { setSaving(false); }
@@ -242,16 +254,20 @@ function EvaluateForm({ branch, employee, evals, onDone, onCancel }) {
 
   return (
     <section className="form-panel">
-      <button className="back" onClick={onCancel}>← กลับ</button>
+      <button className="back" onClick={onCancel}>กลับ</button>
       <div className="eval-head">
         <h2>ประเมิน · {employee.name}</h2>
         <p className="sub">สัปดาห์ {weekLabel(week)} · เริ่มงาน {employee.startDate}</p>
       </div>
 
-      {CRITERIA.map((c, i) => (
+      {CRITERIA.map((c) => (
         <div key={c.key} className="crit">
-          <div className="crit-label"><span>{i + 1}. {c.label}</span></div>
-          <p className="tiny">{c.hint}</p>
+          <div className="crit-label"><span>{c.label}</span></div>
+          <ul className="crit-items">
+            {c.items.map((it, idx) => (
+              <li key={idx}><b>{it.title}</b> — {it.desc}</li>
+            ))}
+          </ul>
           <div className="rating-row">
             {RATINGS.map((r) => (
               <button key={r.key}
@@ -261,18 +277,14 @@ function EvaluateForm({ branch, employee, evals, onDone, onCancel }) {
               >{r.label}</button>
             ))}
           </div>
-          <textarea className="comment" rows={2}
-            placeholder="ความเห็นสำหรับหัวข้อนี้..."
-            value={comments[c.key]}
-            onChange={(e) => setComments((s) => ({ ...s, [c.key]: e.target.value }))}
-          />
         </div>
       ))}
 
-      <label className="fld"><span>ความเห็นเพิ่มเติมโดยรวม (ไม่บังคับ)</span>
-        <textarea rows={3} value={overallNote}
+      <label className="fld"><span>ความเห็นเพิ่มเติมโดยรวม <b style={{color:"var(--danger)"}}>*จำเป็น</b></span>
+        <textarea rows={4} value={overallNote}
+          className={overallNote.trim() ? "" : "field-required"}
           onChange={(e) => setOverallNote(e.target.value)}
-          placeholder="สรุปภาพรวม จุดเด่น จุดที่ต้องพัฒนา..." />
+          placeholder="สรุปภาพรวม จุดเด่น จุดที่ต้องพัฒนา... (ต้องกรอกก่อนยืนยันผล)" />
       </label>
 
       <div className="verdict-pick">
@@ -296,6 +308,10 @@ function EvaluateForm({ branch, employee, evals, onDone, onCancel }) {
       )}
       {verdict === "fail" && (
         <div className="warn">ผลสรุป "ไม่ผ่าน" จะเปลี่ยนสถานะเป็น "รอ HR ติดต่อ" และหยุดการประเมิน — HR จะเห็นในระบบทันที</div>
+      )}
+
+      {showErr && !noteOk && (
+        <div className="warn err-shake">กรุณากรอก "ความเห็นเพิ่มเติมโดยรวม" ก่อนยืนยันผลประเมิน</div>
       )}
 
       <div className="row-btns">

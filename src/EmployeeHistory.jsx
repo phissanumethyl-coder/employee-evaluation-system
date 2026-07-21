@@ -22,14 +22,12 @@ function EvalCard({ emp, ev }) {
       <div className="ed-criteria">
         {CRITERIA.map((c) => {
           const r = ratingInfo(ev.ratings?.[c.key]);
-          const cm = ev.comments?.[c.key];
           return (
             <div key={c.key} className="ed-crit">
               <div className="ed-crit-top">
                 <span>{c.label}</span>
                 <span className="ed-rate" style={{ color: r.color }}>{r.label}</span>
               </div>
-              {cm && <p className="ed-comment">{cm}</p>}
             </div>
           );
         })}
@@ -47,10 +45,10 @@ export default function EmployeeHistory({ employee, evals, onBack }) {
 
   return (
     <section className="form-panel wide-panel">
-      <button className="back" onClick={onBack}>← กลับ</button>
+      <button className="back" onClick={onBack}>กลับ</button>
       <div className="eval-head">
         <div className="hist-title-row">
-          <h2>{employee.name}</h2>
+          <h2>{employee.name}{employee.nickname ? ` (${employee.nickname})` : ""}</h2>
           <span className={`badge ${st.cls}`}>{st.label}</span>
         </div>
         <p className="sub">เริ่มงาน {employee.startDate || "-"} · ประเมินทั้งหมด {history.length} ครั้ง</p>

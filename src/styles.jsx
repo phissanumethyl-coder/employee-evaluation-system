@@ -92,10 +92,13 @@ export function Style() {
       .empty.sm{padding:20px}
 
       .form-panel{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:26px;max-width:660px;margin:0 auto}
-      .back{display:inline-flex;align-items:center;gap:6px;background:#fff;border:1px solid var(--line);
-        color:var(--accent);cursor:pointer;font-size:14px;font-weight:600;margin-bottom:16px;font-family:inherit;
-        padding:9px 16px;border-radius:10px;transition:.15s;box-shadow:0 1px 2px rgba(0,0,0,.04)}
-      .back:hover{background:var(--accent-light);border-color:var(--accent);transform:translateX(-2px)}
+      .back{display:inline-flex;align-items:center;gap:8px;background:#fff;border:1.5px solid #dbe4f0;
+        color:var(--accent);cursor:pointer;font-size:14.5px;font-weight:700;margin-bottom:18px;font-family:inherit;
+        padding:10px 20px 10px 16px;border-radius:999px;transition:.2s;box-shadow:0 2px 8px -3px rgba(37,99,235,.3)}
+      .back::before{content:"←";font-size:17px;transition:.2s;display:inline-block}
+      .back:hover{background:var(--accent);color:#fff;border-color:var(--accent);box-shadow:0 6px 16px -4px rgba(37,99,235,.5);transform:translateY(-1px)}
+      .back:hover::before{transform:translateX(-3px)}
+      .back:active{transform:translateY(0)}
       .eval-head{margin-bottom:8px}
       .row-btns{display:flex;justify-content:flex-end;gap:12px;margin-top:20px}
 
@@ -207,6 +210,29 @@ export function Style() {
 
       /* login card ทันสมัย */
       .login-card{animation:popIn .35s cubic-bezier(.16,1,.3,1) both}
+      .login-brand{flex-direction:column;text-align:center;gap:10px}
+      .login-logo{width:88px;height:88px;object-fit:contain;filter:drop-shadow(0 6px 14px rgba(37,99,235,.25))}
+
+      /* หัวข้อย่อยในฟอร์มประเมิน */
+      .crit-items{margin:8px 0 0 18px;padding:0;font-size:13px;color:#334155;line-height:1.55}
+      .crit-items li{margin-bottom:3px}
+      .crit-items b{color:#0f172a}
+
+      /* ช่องความเห็นจำเป็น */
+      .field-required{border-color:#fca5a5 !important;background:#fef2f2 !important}
+      .err-shake{animation:shake .4s ease}
+      @keyframes shake{0%,100%{transform:translateX(0)}25%{transform:translateX(-6px)}75%{transform:translateX(6px)}}
+
+      /* toast แจ้งเตือน */
+      .toast-wrap{position:fixed;top:24px;left:0;right:0;display:flex;justify-content:center;z-index:2000;pointer-events:none}
+      .toast{display:flex;align-items:center;gap:10px;background:#fff;color:#0f172a;
+        padding:14px 24px;border-radius:999px;box-shadow:0 12px 40px -8px rgba(0,0,0,.3);
+        font-weight:600;font-size:15px;border:1.5px solid #d1fae5;
+        animation:toastIn .35s cubic-bezier(.16,1,.3,1) both, toastOut .4s ease 2.2s forwards}
+      .toast-check{display:inline-flex;align-items:center;justify-content:center;width:26px;height:26px;
+        background:#22c55e;color:#fff;border-radius:50%;font-size:15px;font-weight:700}
+      @keyframes toastIn{from{opacity:0;transform:translateY(-24px) scale(.9)}to{opacity:1;transform:translateY(0) scale(1)}}
+      @keyframes toastOut{to{opacity:0;transform:translateY(-24px) scale(.95)}}
 
       @media(max-width:640px){
         .main{padding:18px 12px}

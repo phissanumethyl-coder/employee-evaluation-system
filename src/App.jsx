@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import { signInAnonymously } from "firebase/auth";
 import { auth } from "./firebase";
 import { BRANCHES, HR_PASS } from "./config";
+import { LOGO_DATA_URL } from "./logo";
 import { Style } from "./styles";
 import ManagerView from "./ManagerView";
 import HRDashboard from "./HRDashboard";
@@ -63,11 +64,11 @@ export default function App() {
       <div className="wrap">
         <Style />
         <div className="login-card">
-          <div className="brand">
-            <span className="brand-mark">◆</span>
+          <div className="brand login-brand">
+            <img src={LOGO_DATA_URL} className="login-logo" alt="logo" />
             <div>
-              <h1>ระบบประเมินพนักงานใหม่</h1>
-              <p className="sub">ฝ่ายขาย Digital Marketing · ประเมินรายสัปดาห์</p>
+              <h1>ระบบประเมินพนักงานใหม่ IT</h1>
+              <p className="sub">บริษัท มีไอเดีย เซ็นเตอร์ แอนด์ ซัพพลาย จำกัด</p>
             </div>
           </div>
 
@@ -113,11 +114,6 @@ export default function App() {
           <button className="btn btn-primary full" onClick={login}>
             เข้าสู่ระบบ
           </button>
-          <p className="tiny">
-            {mode === "hr"
-              ? "HR เห็นภาพรวมทุกสาขา · ดึงรายงาน PDF ได้"
-              : "ผู้จัดการเห็นเฉพาะพนักงานสาขาตัวเอง"}
-          </p>
         </div>
       </div>
     );
