@@ -12,6 +12,21 @@ export function Style() {
         --danger:#dc2626; --warn:#d97706;
         --pass:#2563eb; --term:#dc2626; --prob:#d97706;
       }
+      /* ปิดการคลุมดำข้อความทั้งระบบ (ให้รู้สึกเหมือนแอป) */
+      .wrap, .wrap *{
+        -webkit-user-select:none; -moz-user-select:none; -ms-user-select:none; user-select:none;
+        -webkit-tap-highlight-color:transparent;
+      }
+      /* ยกเว้นช่องกรอกข้อมูล — ต้องพิมพ์/เลือก/คัดลอกได้ */
+      .wrap input, .wrap textarea, .wrap select,
+      .wrap input *, .wrap textarea *{
+        -webkit-user-select:text; -moz-user-select:text; -ms-user-select:text; user-select:text;
+      }
+      /* เคอร์เซอร์: ตัวหนังสือทั่วไปเป็นลูกศรปกติ ไม่ใช่ I-beam */
+      .wrap h1,.wrap h2,.wrap h3,.wrap p,.wrap span,.wrap strong,.wrap b,.wrap li,.wrap td,.wrap th,.wrap label{cursor:default}
+      /* แต่ข้อความที่อยู่ในปุ่ม/การ์ดคลิกได้ ต้องเป็นมือชี้ตาม parent */
+      .wrap button *, .wrap a *, .wrap .clickable *{cursor:pointer}
+
       .wrap{min-height:100vh;background:linear-gradient(180deg,#f0f4f9 0%,#e8eef6 100%);color:var(--ink);
         font-family:'Noto Sans Thai',system-ui,sans-serif}
       h1,h2,h3{font-family:'Noto Sans Thai',sans-serif;letter-spacing:-.01em;font-weight:700}
