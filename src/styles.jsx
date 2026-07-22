@@ -75,8 +75,9 @@ export function Style() {
       .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:16px}
       .emp-card{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:18px;display:flex;flex-direction:column;gap:12px;transition:.2s;box-shadow:0 1px 3px rgba(15,23,42,.04)}
       .emp-card:hover{box-shadow:0 10px 30px -14px rgba(37,99,235,.25);transform:translateY(-3px);border-color:#c7d7f5}
-      .emp-top{display:flex;justify-content:space-between;align-items:flex-start;gap:8px}
-      .emp-top h3{font-size:17px}
+      .emp-top{display:flex;flex-direction:column;align-items:flex-start;gap:8px}
+      .emp-top h3{font-size:17px;line-height:1.35}
+      .emp-top .badge{align-self:flex-start}
       .emp-meta{display:flex;justify-content:space-between;font-size:13px;color:#444;border-top:1px dashed var(--line);padding-top:10px}
       .ok{color:var(--pass);font-weight:700}
       .review{color:#ca8a04;font-weight:700}

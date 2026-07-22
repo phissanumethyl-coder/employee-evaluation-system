@@ -12,8 +12,8 @@ export const DEFAULT_BRANCHES = [
   { id: "mukdahan", name: "สาขามุกดาหาร", pass: "mukdahan01" },
 ];
 
-// รหัสสำหรับ HR ส่วนกลาง (ดูได้ทุกสาขา)
-export const HR_PASS = "hr-central-2026";
+// รหัสสำหรับ HR (ดูได้ทุกสาขา)
+export const HR_PASS = "hrmeidea101";
 
 // ===== หัวข้อประเมิน 4 ด้าน (ประเมินรายหัวข้อย่อย 12 หัวข้อ) =====
 export const CRITERIA = [

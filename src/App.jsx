@@ -88,7 +88,7 @@ export default function App() {
             </button>
             <button className={mode === "hr" ? "tab on" : "tab"}
               onClick={() => { setMode("hr"); setErr(""); }}>
-              ฝ่าย HR ส่วนกลาง
+              ฝ่าย HR
             </button>
           </div>
 

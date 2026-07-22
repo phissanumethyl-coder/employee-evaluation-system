@@ -224,7 +224,7 @@ export default function HRDashboard({ ready, branches, onLogout }) {
     <div className="wrap">
       <Style />
       <header className="topbar">
-        <div><span className="brand-mark sm">◆</span><strong>HR ส่วนกลาง · ภาพรวมทุกสาขา</strong></div>
+        <div><span className="brand-mark sm">◆</span><strong>HR · ภาพรวมทุกสาขา</strong></div>
         <div className="topbar-right">
           <button className="btn btn-ghost" onClick={() => setManageBranch(true)}>จัดการสาขา</button>
           <button className="btn btn-ghost" onClick={onLogout}>ออกจากระบบ</button>
